@@ -72,3 +72,127 @@ import Testing
     #expect(scene.overlaysAreHidden)
     #expect(abs(scene.pipNode.position.x - expected.x) < 0.01 && abs(scene.pipNode.position.y - expected.y) < 0.01)
 }
+
+// MARK: Effects on Pip
+
+@MainActor private func effectScene() -> (RunnerScene, GameState) {
+    let scene = RunnerScene(islandSize: CGSize(width: 445, height: 282), band: 32)
+    var s = Runner.newGame(world: World.forField(width: 421, height: 240), seed: 1, best: 0)
+    s.phase = .running; s.pipY = 96
+    return (scene, s)
+}
+
+@MainActor @Test func featherOrbitComesAndGoesWithTheCharge() {
+    let (scene, s0) = effectScene()
+    var s = s0
+    scene.sync(s)
+    #expect(scene.pipEffects.featherOrbit == nil)
+    s.effects.apply(.feather)
+    scene.sync(s)
+    let orbit = scene.pipEffects.featherOrbit
+    #expect(orbit?.parent === scene.pipNode)
+    s.time += 0.2; scene.sync(s)
+    #expect(scene.pipEffects.featherOrbit === orbit)   // one node, moved, not remade
+    s.effects.feather = false
+    scene.sync(s)
+    #expect(scene.pipEffects.featherOrbit == nil && orbit?.parent == nil)
+}
+
+@MainActor @Test func reduceMotionParksTheFeather() {
+    let (scene, s0) = effectScene()
+    var s = s0; s.effects.apply(.feather)
+    scene.reduceMotion = true
+    scene.sync(s)
+    let p0 = scene.pipEffects.featherOrbit!.position
+    s.time += 0.3; scene.sync(s)
+    #expect(scene.pipEffects.featherOrbit!.position == p0)
+}
+
+@MainActor @Test(arguments: [(Pickup.tiny, 0.7), (.bloat, 1.3)])
+func tinyAndBloatEasePipToTheirSize(p: Pickup, scale: Double) {
+    let (scene, s0) = effectScene()
+    var s = s0
+    scene.sync(s)
+    let normal = scene.pipNode.xScale
+    s.effects.apply(p)
+    scene.sync(s)
+    #expect(abs(scene.pipNode.xScale - normal) < 1e-6)   // eases: no jump on the first frame
+    scene.pipEffects.tick(0.1); scene.sync(s)
+    let halfway = scene.pipNode.xScale / normal
+    #expect(halfway > min(1, scale) + 0.01 && halfway < max(1, scale) - 0.01)
+    scene.pipEffects.tick(0.15); scene.sync(s)
+    #expect(abs(scene.pipNode.xScale - normal * scale) < 1e-6)
+    s.effects = Effects()
+    scene.sync(s); scene.pipEffects.tick(0.25); scene.sync(s)
+    #expect(abs(scene.pipNode.xScale - normal) < 1e-6)
+}
+
+@MainActor @Test func reduceMotionSnapsPipToSize() {
+    let (scene, s0) = effectScene()
+    var s = s0
+    scene.reduceMotion = true
+    scene.sync(s)
+    let normal = scene.pipNode.xScale
+    s.effects.apply(.tiny)
+    scene.sync(s)
+    #expect(abs(scene.pipNode.xScale - normal * 0.7) < 1e-6)
+}
+
+@MainActor @Test func bloatSwapsInThePuffedSprite() {
+    let (scene, s0) = effectScene()
+    var s = s0
+    scene.sync(s)
+    let normal = scene.pipNode.texture
+    s.effects.apply(.bloat)
+    scene.sync(s)
+    #expect(scene.pipNode.texture !== normal)
+    s.effects = Effects()
+    scene.sync(s)
+    #expect(scene.pipNode.texture === normal)
+}
+
+@MainActor @Test func stoneScaleShowsCracks() {
+    let (scene, s0) = effectScene()
+    var s = s0
+    scene.sync(s)
+    #expect(scene.pipEffects.cracks.isHidden)
+    s.effects.apply(.stoneScale)
+    scene.sync(s)
+    #expect(!scene.pipEffects.cracks.isHidden)
+}
+
+@MainActor @Test func resetDropsTheFeatherAndSize() {
+    let (scene, s0) = effectScene()
+    var s = s0; s.effects.apply(.feather); s.effects.apply(.bloat)
+    scene.sync(s); scene.pipEffects.tick(1); scene.sync(s)
+    scene.reset()
+    #expect(scene.pipEffects.featherOrbit == nil && scene.pipEffects.sizeScale == 1)
+}
+
+@MainActor @Test func resizeKeepsTheEffectSize() {
+    let (scene, s0) = effectScene()
+    var s = s0; s.effects.apply(.tiny)
+    scene.sync(s); scene.pipEffects.tick(1); scene.sync(s)
+    scene.layout(islandSize: CGSize(width: 545, height: 342), band: 32)   // a taller field: 1.5 pt per unit
+    scene.sync(s)
+    #expect(abs(scene.pipNode.xScale - (scene.unitScale / 1.2) * 0.7) < 1e-6)
+}
+
+@MainActor @Test func heroChangeWhileBloatedRedrawsThePuff() {
+    let (scene, s0) = effectScene()
+    var s = s0; s.effects.apply(.bloat)
+    scene.sync(s)
+    let pipPuff = scene.pipNode.texture
+    scene.apply(hero: .moss, map: .volcano)
+    scene.sync(s)
+    #expect(scene.pipNode.texture != nil && scene.pipNode.texture !== pipPuff)
+}
+
+@MainActor @Test func featherOrbitLeavesWhenPipCrashes() {
+    let (scene, s0) = effectScene()
+    var s = s0; s.effects.apply(.feather)
+    scene.sync(s)
+    s.phase = .crashed
+    scene.sync(s)
+    #expect(scene.pipEffects.featherOrbit == nil)
+}

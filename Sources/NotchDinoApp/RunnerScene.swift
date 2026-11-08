@@ -46,6 +46,7 @@ import SpriteKit
     private let stone = SKSpriteNode(texture: SKTexture(cgImage: Art.stonePatches()))
     private let streaks = SKSpriteNode(texture: SKTexture(cgImage: Art.streaks()))
     private let ash = SKSpriteNode()
+    let pipEffects = PipEffects()
 
     // Flourish timers, driven by events.
     private var flapTimer = 0.0, puffTimer = 0.0, breathTimer = 0.0, breathAngle: CGFloat = 0
@@ -80,6 +81,7 @@ import SpriteKit
         chargeEmber.position = CGPoint(x: 20, y: 4); chargeEmber.zRotation = -.pi / 2; chargeEmber.zPosition = 2; pipNode.addChild(chargeEmber)
         breath.anchorPoint = CGPoint(x: 0, y: 1 - 8.0 / 18.0); breath.position = CGPoint(x: 18, y: 2); breath.zPosition = 3; pipNode.addChild(breath)
         ash.anchorPoint = .zero; ash.zPosition = 6; addChild(ash)
+        pipEffects.attach(to: pipNode)
         layout(islandSize: islandSize, band: band)
         // Nothing is drawn raw: until the first update the scene shows an idle game for the world it was laid out for.
         if fieldHeight > 0 {
@@ -93,6 +95,7 @@ import SpriteKit
         pipTextures = Dictionary(uniqueKeysWithValues: PipPose.allCases.map { ($0, SKTexture(cgImage: Art.pip($0, hero: hero))) })
         shardTexture = SKTexture(cgImage: Art.shard(map: map))
         chunkTexture = SKTexture(cgImage: Art.chunk(map: map))
+        pipEffects.makeTextures(hero: hero)
     }
 
     /// Switches hero and map. Gate nodes are dropped and rebuilt from the next state, so they pick up the new material.
@@ -161,6 +164,7 @@ import SpriteKit
         gateNodes.values.forEach { $0.removeFromParent() }
         gateNodes = [:]
         flapTimer = 0; puffTimer = 0; breathTimer = 0
+        pipEffects.reset()
         children.filter { $0.name == "flourish" }.forEach { $0.removeFromParent() }
     }
 
@@ -183,6 +187,7 @@ import SpriteKit
 
     private func tickFlourishes(_ dt: Double) {
         flapTimer = max(0, flapTimer - dt); puffTimer = max(0, puffTimer - dt); breathTimer = max(0, breathTimer - dt)
+        pipEffects.tick(dt)
     }
 
     func sync(_ s: GameState) {
@@ -215,7 +220,9 @@ import SpriteKit
         let pose: PipPose = s.phase == .crashed ? .crash
             : flapTimer > 0 ? .wingDown
             : (Int(s.time * (s.phase == .idle ? 9 : 8)) % 2 == 0 ? .wingUp : .wingDown)
-        pipNode.texture = pipTextures[pose]
+        pipNode.texture = pipEffects.texture(pose, normal: pipTextures[pose], bloated: s.effects.bloat > 0)
+        pipEffects.sync(s, reduceMotion: reduceMotion)
+        pipNode.setScale(artScale * pipEffects.sizeScale)
         puff.alpha = s.effects.emberCharge ? 0 : CGFloat(puffTimer / 0.4)
         chargeEmber.isHidden = !(s.effects.emberCharge && breathTimer == 0) || s.phase == .crashed
         breath.isHidden = breathTimer == 0
