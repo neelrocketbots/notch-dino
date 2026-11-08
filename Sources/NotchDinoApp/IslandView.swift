@@ -78,7 +78,6 @@ public struct IslandView: View {
                 }
                 .frame(height: g.notch.height)
                 Spacer(minLength: 0)
-                if IslandLogic.resizeAllowed(model.phase) { NotchResizeHandle(driver: model) }
             }
         }
         .frame(width: g.expandedSize.width, height: g.expandedSize.height)

@@ -39,7 +39,7 @@ gap, and each of the two openings holds something. Pick your opening.
 | Stone scale | Heavier gravity for 5 s. |
 | Hiccups | Random hops for 4 s. |
 
-You can drag the island off the notch to float it anywhere, and resize it while the game is paused.
+You can drag the island off the notch to float it anywhere.
 
 ## Heroes and maps
 

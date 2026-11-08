@@ -17,16 +17,23 @@ func freshDefaults() -> UserDefaults { UserDefaults(suiteName: "notchDino.tests.
     d.set(-5, forKey: BestScoreStore.key); #expect(BestScoreStore(defaults: d).load() == 0)
 }
 
-@Test func layoutRoundTripsAndSkipsBadEntries() {
+@Test func layoutRoundTripsOriginsAndSkipsBadEntries() {
     let d = freshDefaults(); let s = LayoutStore(defaults: d)
     s.save(NotchLayoutPrefs(heights: [1: 320], origins: [1: NotchOrigin(x: 0.5, y: 0.2)]))
     let loaded = s.load()
-    #expect(loaded.heights[1] == 320 && loaded.origins[1] == NotchOrigin(x: 0.5, y: 0.2))
+    #expect(loaded.origins[1] == NotchOrigin(x: 0.5, y: 0.2))
+    #expect(loaded.heights.isEmpty && d.object(forKey: LayoutStore.legacyHeightsKey) == nil)
 
-    d.set(["1": 300.0, "01": 200.0, "x": 100.0], forKey: LayoutStore.heightsKey)
     d.set(Data("not json".utf8), forKey: LayoutStore.originsKey)
-    let tolerant = s.load()
-    #expect(tolerant.heights == [1: 300] && tolerant.origins.isEmpty)
+    #expect(s.load().origins.isEmpty)
+}
+
+@Test func legacyHeightsAreIgnoredAndDropped() {
+    let d = freshDefaults(); let s = LayoutStore(defaults: d)
+    d.set(["1": 300.0], forKey: LayoutStore.legacyHeightsKey)
+    #expect(s.load().heights.isEmpty)
+    s.dropLegacyHeights()
+    #expect(d.object(forKey: LayoutStore.legacyHeightsKey) == nil)
 }
 
 @Test func floatingPreference() {

@@ -19,8 +19,6 @@ public enum IslandLogic {
         case .flapKey, .clickField: return (true, phase == .crashed ? [.newGameAndFlap] : [.flap])
         }
     }
-
-    public static func resizeAllowed(_ phase: Phase) -> Bool { phase == .idle || phase == .paused }
 }
 
 public enum KeyAction: Equatable, Sendable { case island(IslandEvent), quit }

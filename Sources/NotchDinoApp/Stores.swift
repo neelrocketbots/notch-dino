@@ -11,22 +11,23 @@ public struct BestScoreStore: @unchecked Sendable {
     public func save(_ best: Int) { defaults.set(max(0, best), forKey: Self.key) }
 }
 
-/// Island height and floating origin per display, through NotchKit's tolerant `NotchLayoutPrefs`.
+/// The floating origin per display, through NotchKit's tolerant `NotchLayoutPrefs`. The island has one fixed height, so
+/// heights are never stored.
 public struct LayoutStore: @unchecked Sendable {
-    public static let heightsKey = "notchDino.heights"
+    /// Where earlier builds saved a height per display: no longer read, and removed on launch.
+    public static let legacyHeightsKey = "notchDino.heights"
     public static let originsKey = "notchDino.origins"
     public static let floatingKey = "notchDino.floating"
     private let defaults: UserDefaults
     public init(defaults: UserDefaults = .standard) { self.defaults = defaults }
 
     public func load() -> NotchLayoutPrefs {
-        var heights: [String: Double] = [:]
-        for (key, value) in defaults.dictionary(forKey: Self.heightsKey) ?? [:] {
-            if let d = value as? Double { heights[key] = d }
-        }
         let origins = defaults.data(forKey: Self.originsKey).map(Self.decodeOrigins) ?? [:]
-        return NotchLayoutPrefs(storedHeights: heights, storedOrigins: origins)
+        return NotchLayoutPrefs(storedHeights: [:], storedOrigins: origins)
     }
+
+    /// Removes the heights earlier builds saved, so stale data does not linger.
+    public func dropLegacyHeights() { defaults.removeObject(forKey: Self.legacyHeightsKey) }
 
     /// Decodes each entry on its own, so one malformed origin does not discard the valid ones.
     private static func decodeOrigins(_ data: Data) -> [String: NotchOrigin] {
@@ -41,7 +42,6 @@ public struct LayoutStore: @unchecked Sendable {
     }
 
     public func save(_ prefs: NotchLayoutPrefs) {
-        defaults.set(prefs.storedHeights, forKey: Self.heightsKey)
         defaults.set(try? JSONEncoder().encode(prefs.storedOrigins), forKey: Self.originsKey)
     }
 

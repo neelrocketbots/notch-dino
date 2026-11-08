@@ -51,30 +51,41 @@ import Testing
     #expect(m.hitRect == m.islandFrame && m.islandFrame.size == m.geometry.expandedSize)
 }
 
-@MainActor @Test func resetAndStepPersistHeight() {
-    let d = UserDefaults(suiteName: "notchDino.model.\(UUID().uuidString)")!
-    let m = makeModel(defaults: d)
-    m.resize(.step(1))
-    #expect(LayoutStore(defaults: d).load().heights[1] == Double(m.geometry.expandedSize.height))
-    m.resize(.step(1))
-    m.resize(.reset)
-    #expect(LayoutStore(defaults: d).load().heights[1] == Double(m.geometry.expandedSize.height))
+@MainActor @Test func opensAtTheDefaultHeight() {
+    let m = makeModel()
+    m.handle(.hotKey)
+    #expect(m.panel == nil && m.isOpen)
+    #expect(Double(m.geometry.expandedSize.height) == 32 + NotchGeometry.extraHeight)
+    let field = IslandModel.fieldSize(m.geometry)
+    #expect(m.game.world == World.forField(width: field.width, height: field.height))
 }
 
-@MainActor @Test func resizeEndClearsStateEvenWhenRunning() {
+@MainActor @Test func leftoverSavedHeightIsIgnoredAndRemoved() {
+    let d = UserDefaults(suiteName: "notchDino.model.\(UUID().uuidString)")!
+    d.set(["1": 600.0], forKey: LayoutStore.legacyHeightsKey)
+    let m = makeModel(defaults: d)
+    #expect(Double(m.geometry.expandedSize.height) == 32 + NotchGeometry.extraHeight)
+    #expect(d.object(forKey: LayoutStore.legacyHeightsKey) == nil)
+    m.rehome(displays: [m.display!])
+    #expect(Double(m.geometry.expandedSize.height) == 32 + NotchGeometry.extraHeight)
+}
+
+@MainActor @Test func rehomeAppliesTheNewDisplaysDefaultHeight() {
     let m = makeModel()
-    m.resize(.began(CGPoint(x: 0, y: 100)))
-    #expect(m.isResizing)
-    m.handle(.hotKey); m.handle(.flapKey)
-    m.resize(.ended)
-    #expect(!m.isResizing)
-    m.resize(.began(CGPoint(x: 0, y: 100)))
-    #expect(!m.isResizing)
+    let other = NotchDisplay(id: 2, x: 0, y: 0, width: 1728, height: 1117, notch: Notch(width: 200, height: 38),
+                             isMain: true, isBuiltIn: true, menuBarHeight: 38)
+    m.rehome(displays: [other])
+    #expect(m.display?.id == 2)
+    #expect(Double(m.geometry.expandedSize.height) == 38 + NotchGeometry.extraHeight)
+    #expect(m.geometry == IslandModel.makeGeometry(other))
+    let field = IslandModel.fieldSize(m.geometry)
+    #expect(m.game.world == World.forField(width: field.width, height: field.height))
 }
 
 @MainActor @Test func foldMidDragClearsMoving() {
     let m = makeModel()
-    m.panel = IslandPanel(size: m.panelSize)
+    let panel = IslandPanel(size: m.panelSize)
+    m.panel = panel
     m.handle(.hotKey)
     m.move(.began(.zero)); m.move(.changed(CGPoint(x: 20, y: 0)))
     #expect(m.isMoving && m.isFloating)
@@ -84,7 +95,8 @@ import Testing
 
 @MainActor @Test func cancelAfterMorphRedocks() {
     let m = makeModel()
-    m.panel = IslandPanel(size: m.panelSize)
+    let panel = IslandPanel(size: m.panelSize)
+    m.panel = panel
     m.handle(.hotKey)
     m.move(.began(.zero)); m.move(.changed(CGPoint(x: 20, y: 0)))
     #expect(m.isFloating)
@@ -92,26 +104,23 @@ import Testing
     #expect(!m.isFloating && !m.isMoving)
 }
 
-/// The test display is 982 pt tall with no Dock inset, so the tallest island is 982 − 80 (Dock clearance) = 902.
-@MainActor @Test(arguments: [5.0, 50_000.0])
-func savedHeightIsClampedToTheDisplayOnLaunch(saved: Double) {
+/// The VoiceOver float (a corner) and dock actions: floating saves the origin and keeps the default height.
+@MainActor @Test func floatsToACornerAndDocksBack() {
     let d = UserDefaults(suiteName: "notchDino.model.\(UUID().uuidString)")!
-    LayoutStore(defaults: d).save(NotchLayoutPrefs(heights: [1: saved]))
     let m = makeModel(defaults: d)
-    let h = Double(m.geometry.expandedSize.height)
-    #expect(h >= NotchGeometry.idleHeight && h <= 902)
-    #expect(m.game.world.width > 0 && m.game.world.width.isFinite)
-}
-
-@MainActor @Test(arguments: [5.0, 50_000.0])
-func savedHeightIsClampedToTheDisplayOnRehome(saved: Double) {
-    let d = UserDefaults(suiteName: "notchDino.model.\(UUID().uuidString)")!
-    LayoutStore(defaults: d).save(NotchLayoutPrefs(heights: [1: saved]))
-    let m = makeModel(defaults: d)
-    m.rehome(displays: [m.display!])
-    let h = Double(m.geometry.expandedSize.height)
-    #expect(h >= NotchGeometry.idleHeight && h <= 902)
-    #expect(m.game.world.width > 0 && m.game.world.width.isFinite)
+    let panel = IslandPanel(size: m.panelSize)
+    m.panel = panel
+    m.handle(.hotKey)
+    m.move(.corner(.bottomRight))
+    #expect(m.isFloating && m.geometry.isFloating)
+    #expect(LayoutStore(defaults: d).prefersFloating())
+    #expect(LayoutStore(defaults: d).load().origins[1] != nil)
+    #expect(Double(m.geometry.expandedSize.height) == 32 + NotchGeometry.extraHeight)
+    #expect(d.object(forKey: LayoutStore.legacyHeightsKey) == nil)
+    m.move(.reset)
+    #expect(!m.isFloating && !m.geometry.isFloating)
+    #expect(!LayoutStore(defaults: d).prefersFloating())
+    #expect(Double(m.geometry.expandedSize.height) == 32 + NotchGeometry.extraHeight)
 }
 
 @MainActor @Test func openingSyncsTheSceneBeforeAnyUpdateTick() {

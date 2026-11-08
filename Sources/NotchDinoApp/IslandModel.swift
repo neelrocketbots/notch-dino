@@ -27,15 +27,14 @@ import RunnerCore
     @ObservationIgnored private var base: NotchGeometry
     @ObservationIgnored private var seed: UInt64
     @ObservationIgnored private var moveStart: (pointer: CGPoint, frame: CGRect)?
-    @ObservationIgnored private var resizeStart: (pointer: CGPoint, height: Double)?
     @ObservationIgnored private var moveStartedDocked = false
-    @ObservationIgnored var isResizing: Bool { resizeStart != nil }
 
     public init(display: NotchDisplay?, best: BestScoreStore, layout: LayoutStore, looks: LookStore = LookStore(), seed: UInt64) {
         self.display = display
         self.bestStore = best
         self.layoutStore = layout
         self.lookStore = looks
+        layout.dropLegacyHeights()
         self.hero = looks.hero()
         self.map = looks.map()
         self.prefs = layout.load()
@@ -49,7 +48,6 @@ import RunnerCore
         scene.isPaused = true
         scene.reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         scene.driver = self
-        if let id = display?.id, let h = prefs.heights[id] { applySavedHeight(h) }
         publish()
     }
 
@@ -182,7 +180,7 @@ import RunnerCore
         display = d
         base = Self.makeGeometry(d)
         isFloating = false
-        applySavedHeight(prefs.heights[d.id] ?? base.expandedSize.height)
+        applyBaseGeometry()
         panel?.orderFrontRegardless()
     }
 
@@ -202,7 +200,7 @@ import RunnerCore
                        display: true)
     }
 
-    private func clearDrag() { moveStart = nil; resizeStart = nil; isMoving = false }
+    private func clearDrag() { moveStart = nil; isMoving = false }
 
     private func persistFloatingOrigin(_ topLeft: CGPoint) {
         guard let d = display else { return }
@@ -212,12 +210,6 @@ import RunnerCore
                                                 pillSize: geometry.expandedSize)
         layoutStore.save(prefs)
         layoutStore.setPrefersFloating(true)
-    }
-
-    private func persistHeight() {
-        guard let id = display?.id else { return }
-        prefs.heights[id] = geometry.expandedSize.height
-        layoutStore.save(prefs)
     }
 
     private func dock(rememberFloating: Bool) {
@@ -297,59 +289,22 @@ import RunnerCore
         }
     }
 
-    // MARK: NotchHandleDriver — resize (idle or paused only)
+    // MARK: NotchHandleDriver — resize
 
-    private var minHeight: Double { NotchGeometry.idleHeight }
-    private var maxHeight: Double {
-        guard let d = display else { return base.expandedSize.height }
-        let top = isFloating ? Double(floatingTopLeft.y) : d.y
-        return NotchResize.maxHeight(top: top, display: d, min: minHeight)
-    }
+    /// The island always keeps NotchKit's default height, so no resize handle is shown and this does nothing.
+    /// It stays only because `NotchHandleDriver` requires it.
+    public func resize(_ input: NotchHandleInput) {}
 
-    public func resize(_ input: NotchHandleInput) {
-        switch input {
-        case .ended, .cancel:
-            let dragging = resizeStart != nil
-            resizeStart = nil
-            if dragging {
-                applyHeight(NotchResize.settled(geometry.expandedSize.height, min: minHeight, max: maxHeight))
-                persistHeight()
-            }
-            return
-        default: break
-        }
-        guard IslandLogic.resizeAllowed(game.phase) else { return }
-        switch input {
-        case .began(let p): resizeStart = (p, geometry.expandedSize.height)
-        case .changed(let p):
-            guard let s = resizeStart else { return }
-            applyHeight(NotchResize.live(proposed: s.height + (s.pointer.y - p.y), min: minHeight, max: maxHeight,
-                                         reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion))
-        case .reset: applyHeight(base.notch.height + NotchGeometry.extraHeight); persistHeight()
-        case .step(let dir):
-            applyHeight(NotchResize.stepped(geometry.expandedSize.height, by: dir, min: minHeight, max: maxHeight))
-            persistHeight()
-        case .ended, .cancel, .corner: break
-        }
-    }
-
-    /// A height from settings (or the default) may come from a taller display or a hand edit: keep it within this one.
-    private func applySavedHeight(_ height: Double) {
-        applyHeight(NotchResize.settled(height, min: minHeight, max: maxHeight))
-    }
-
-    private func applyHeight(_ height: Double) {
-        let h = height.rounded()
+    /// Lays the island out at the display's default height (`notch.height + NotchGeometry.extraHeight`) and resizes the
+    /// world to the new field.
+    private func applyBaseGeometry() {
         var g = base
-        g.expandedSize.height = h
-        g.panelSize = base.panelSize(growth: h - base.expandedSize.height)
         g.isFloating = isFloating
-        let topLeft = isFloating ? floatingTopLeft : nil
         geometry = g
         scene.layout(islandSize: g.expandedSize, band: g.notch.height)
         let field = Self.fieldSize(g)
         Runner.resize(&game, world: World.forField(width: field.width, height: field.height))
         scene.sync(game)
-        if let topLeft { float(topLeft: topLeft) } else { placePanel() }
+        placePanel()
     }
 }
