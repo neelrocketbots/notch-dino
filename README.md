@@ -57,3 +57,7 @@ Requires macOS 26 or later and Swift 6.2. Built on [NotchKit](https://github.com
 
     swift run NotchDino      # play
     swift test               # game rules and app logic
+
+## License
+
+MIT — see [LICENSE](LICENSE).
