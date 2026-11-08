@@ -22,6 +22,14 @@ import Testing
         #expect(s.contains("codesign --force --sign -"))
     }
 
+    @Test func theAppCarriesItsIcon() throws {
+        let s = try script
+        #expect(s.contains("<key>CFBundleIconFile</key><string>AppIcon</string>"))
+        #expect(s.contains("cp scripts/icon/AppIcon.icns \"$APP/Contents/Resources/AppIcon.icns\""))
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        #expect(FileManager.default.fileExists(atPath: root.appendingPathComponent("scripts/icon/AppIcon.icns").path))
+    }
+
     @Test func theReadmeSaysHowToBuildTheApp() throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let readme = try String(contentsOf: root.appendingPathComponent("README.md"), encoding: .utf8)
