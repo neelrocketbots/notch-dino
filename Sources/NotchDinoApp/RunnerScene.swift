@@ -60,6 +60,10 @@ import SpriteKit
     /// The hero the ghost is drawn as: the opponent's, any of `Hero.allCases`.
     private(set) var ghostHero: Hero?
     private var ghostTextures: [PipPose: SKTexture] = [:]
+    /// The crashed ghost's exit: nil until it crashes, then its start and elapsed scene time; `done` once it has left.
+    private struct GhostFall { var from: CGPoint; var alpha: CGFloat; var scale: CGFloat; var elapsed = 0.0; var done = false }
+    private var ghostFall: GhostFall?
+    private static let ghostFallTime = 0.6, ghostFadeTime = 0.3
     /// The race world's width, when it isn't this field's own. Fitted by height and centred.
     private(set) var worldWidth: Double?
     let letterboxBars = [SKSpriteNode(color: .black, size: .zero), SKSpriteNode(color: .black, size: .zero)]
@@ -191,6 +195,7 @@ import SpriteKit
         ghostTag?.removeFromParent()
         ghostNode = nil
         ghostTag = nil
+        ghostFall = nil
         ghostHero = hero
         guard let hero else { ghostTextures = [:]; return }
         ghostTextures = Dictionary(uniqueKeysWithValues: PipPose.allCases.map { ($0, SKTexture(cgImage: Art.pip($0, hero: hero))) })
@@ -219,6 +224,16 @@ import SpriteKit
         guard let node = ghostNode else { return }
         guard let s else { node.isHidden = true; ghostTag?.isHidden = true; return }
         let crashed = s.phase == .crashed
+        if !crashed { ghostFall = nil }   // a new run of the ghost state: it is back
+        if crashed {
+            if ghostFall == nil {
+                let size = CGFloat(s.effects.radiusScale)
+                ghostFall = GhostFall(from: scenePoint(x: s.world.pipX, y: s.pipY), alpha: 0.35, scale: artScale * size)
+                node.texture = ghostTextures[.crash]
+            }
+            applyGhostFall(node)
+            return
+        }
         node.isHidden = false
         node.position = scenePoint(x: s.world.pipX, y: s.pipY)
         node.zRotation = -CGFloat(crashed ? 0.45 : max(-0.4, min(0.6, s.pipVY * 0.0026)))
@@ -229,6 +244,28 @@ import SpriteKit
         ghostTag?.isHidden = false
         ghostTag?.alpha = crashed ? 0.6 : 1
         ghostTag?.position = CGPoint(x: node.position.x, y: node.position.y - 30 * artScale * size)
+    }
+
+    /// Poses the falling ghost from its own elapsed time: a tumble and gravity drop, or just a quick fade on Reduce Motion.
+    private func applyGhostFall(_ node: SKSpriteNode) {
+        guard let f = ghostFall else { return }
+        let total = reduceMotion ? Self.ghostFadeTime : Self.ghostFallTime
+        let t = CGFloat(min(1, f.elapsed / total))
+        let gone = f.done || t >= 1
+        if gone { ghostFall?.done = true }
+        node.isHidden = gone; ghostTag?.isHidden = gone
+        node.texture = ghostTextures[.crash]
+        node.setScale(f.scale)
+        node.alpha = f.alpha * (1 - t)
+        ghostTag?.alpha = 0.6 * (1 - t)
+        if reduceMotion {
+            node.zRotation = 0
+            node.position = f.from
+        } else {
+            node.zRotation = -3 * .pi * t   // 1.5 turns
+            node.position = CGPoint(x: f.from.x, y: f.from.y + (-60 - f.from.y) * t * t)
+        }
+        ghostTag?.position = CGPoint(x: f.from.x, y: f.from.y - 30 * f.scale)
     }
 
     // MARK: Per-frame
@@ -254,6 +291,12 @@ import SpriteKit
         flapTimer = 0; puffTimer = 0; breathTimer = 0
         pipEffects.reset()
         children.filter { $0.name == "flourish" }.forEach { $0.removeFromParent() }
+        if ghostFall != nil, let node = ghostNode {
+            ghostFall = nil
+            node.isHidden = false; node.alpha = 0.5; node.zRotation = 0
+            node.texture = ghostTextures[.wingUp]
+            ghostTag?.isHidden = false; ghostTag?.alpha = 1
+        }
     }
 
     func consume(_ events: [GameEvent], state: GameState) {
@@ -278,7 +321,9 @@ import SpriteKit
         }
     }
 
-    private func tickFlourishes(_ dt: Double) {
+    /// Advances every flourish by scene time `dt`, the crashed ghost's fall included. Tests tick it by hand.
+    func tickFlourishes(_ dt: Double) {
+        if ghostFall != nil { ghostFall?.elapsed += dt; if let n = ghostNode { applyGhostFall(n) } }
         flapTimer = max(0, flapTimer - dt); puffTimer = max(0, puffTimer - dt); breathTimer = max(0, breathTimer - dt)
         pipEffects.tick(dt)
     }

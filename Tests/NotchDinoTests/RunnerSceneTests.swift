@@ -258,3 +258,63 @@ func tinyAndBloatEasePipToTheirSize(p: Pickup, scale: Double) {
     scene.sync(s)
     #expect(!scene.fieldEffects.speedLinesShown && !scene.fieldEffects.shimmerShown)
 }
+
+// MARK: A crashed ghost tumbles away
+
+@MainActor private func ghostScene() -> (RunnerScene, SKSpriteNode, GameState) {
+    let scene = RunnerScene(islandSize: CGSize(width: 445, height: 282), band: 32)
+    scene.setGhost(hero: .moss, name: "Ana")
+    var s = Runner.newGame(world: World.forField(width: 421, height: 240), seed: 1, best: 0)
+    s.phase = .running; s.pipY = 100
+    scene.syncGhost(s)
+    return (scene, scene.ghostNode!, s)
+}
+
+@MainActor @Test func aCrashedGhostTumblesDownAndOut() {
+    var (scene, node, s) = ghostScene()
+    let start = node.position
+    s.phase = .crashed
+    scene.syncGhost(s)
+    #expect(!node.isHidden)
+    scene.tickFlourishes(0.3)
+    #expect(!node.isHidden && node.alpha > 0 && node.alpha < 0.35)
+    #expect(node.position.y < start.y && abs(node.zRotation) > 1)
+    scene.tickFlourishes(0.4)
+    #expect(node.isHidden || node.alpha == 0)
+    #expect(scene.ghostTag?.isHidden == true)
+}
+
+@MainActor @Test func aGoneGhostStaysGoneThroughLaterSyncs() {
+    var (scene, node, s) = ghostScene()
+    s.phase = .crashed
+    scene.syncGhost(s)
+    scene.tickFlourishes(1)
+    for _ in 0..<5 { s.step += 1; scene.syncGhost(s); scene.tickFlourishes(0.1) }
+    #expect(node.isHidden && scene.ghostTag?.isHidden == true)
+}
+
+@MainActor @Test func reduceMotionJustFadesTheCrashedGhostInPlace() {
+    var (scene, node, s) = ghostScene()
+    scene.reduceMotion = true
+    let start = node.position
+    s.phase = .crashed
+    scene.syncGhost(s)
+    scene.tickFlourishes(0.15)
+    #expect(!node.isHidden && node.zRotation == 0 && node.position == start && node.alpha > 0)
+    scene.tickFlourishes(0.2)
+    #expect(node.isHidden)
+}
+
+@MainActor @Test func aResetBringsTheFallenGhostBack() {
+    var (scene, node, s) = ghostScene()
+    let normal = node.texture
+    s.phase = .crashed
+    scene.syncGhost(s)
+    scene.tickFlourishes(1)
+    scene.reset()
+    #expect(!node.isHidden && abs(node.alpha - 0.5) < 1e-6 && node.zRotation == 0 && scene.ghostTag?.isHidden == false)
+    #expect(node.texture === normal)
+    s.phase = .running
+    scene.syncGhost(s)
+    #expect(!node.isHidden && abs(node.alpha - 0.5) < 1e-6)
+}
