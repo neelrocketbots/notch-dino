@@ -238,11 +238,22 @@ import Testing
         #expect(m.race == nil && m.session == nil && inbox.messages.contains(.bye(.left)))
     }
 
-    @MainActor @Test func quittingSaysBye() {
+    @MainActor @Test func quittingSaysByeAndReportsWhenItHasGoneOut() {
         let (m, net, clock, _, inbox) = hostedRace()
-        m.prepareToQuit()
+        var gone = false
+        let saying = m.prepareToQuit(then: { gone = true })
+        #expect(saying && !gone)
         pump(net, to: clock.now)
-        #expect(inbox.messages.contains(.bye(.quit)))
+        #expect(inbox.messages.contains(.bye(.quit)) && gone)
+    }
+
+    @MainActor @Test func quittingWithNoRaceHasNothingToSend() {
+        let (m, _, _) = raceModel()
+        var gone = false
+        let solo = m.prepareToQuit(then: { gone = true })
+        m.handle(.hotKey); m.handle(.raceKey)
+        let lobby = m.prepareToQuit(then: { gone = true })
+        #expect(!solo && m.race != nil && !lobby && !gone)
     }
 
     @MainActor @Test func theOpponentLeavingShowsTheLeftCard() {

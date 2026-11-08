@@ -52,6 +52,9 @@ public enum RaceBonjour {
     private var connection: NWConnection?
     private var reader = FrameReader()
     private var closed = false
+    /// Sends handed to Network.framework and not yet processed, and who is waiting for them.
+    private var inFlight = 0
+    private var sentWaiters: [@MainActor () -> Void] = []
 
     /// Host: advertise this race and accept one guest.
     public init(hosting me: RacePlayer, map: String) {
@@ -75,7 +78,23 @@ public enum RaceBonjour {
 
     public func send(_ message: RaceMessage) {
         guard !closed else { return }
-        connection?.send(content: RaceFrame.encode(message), completion: .idempotent)
+        guard let c = connection else { return }
+        inFlight += 1
+        c.send(content: RaceFrame.encode(message), completion: .contentProcessed { [weak self] _ in
+            MainActor.assumeIsolated { self?.processed() }
+        })
+    }
+
+    public func afterSending(_ done: @escaping @MainActor () -> Void) {
+        if inFlight == 0 { done() } else { sentWaiters.append(done) }
+    }
+
+    private func processed() {
+        inFlight = max(0, inFlight - 1)
+        guard inFlight == 0 else { return }
+        let waiters = sentWaiters
+        sentWaiters = []
+        for w in waiters { w() }
     }
 
     /// Stops advertising, lets anything already sent go out, then closes.
@@ -86,7 +105,14 @@ public enum RaceBonjour {
         listener = nil
         guard let c = connection else { return }
         connection = nil
-        c.send(content: nil, contentContext: .finalMessage, isComplete: true, completion: .contentProcessed { _ in c.cancel() })
+        inFlight += 1
+        // Strong self: a quit waiting in `afterSending` needs this link alive until the close has gone out.
+        c.send(content: nil, contentContext: .finalMessage, isComplete: true, completion: .contentProcessed { _ in
+            MainActor.assumeIsolated {
+                c.cancel()
+                self.processed()
+            }
+        })
     }
 
     private func listenerChanged(_ state: NWListener.State) {
@@ -151,6 +177,8 @@ public enum RaceBonjour {
         connection?.cancel()
         listener = nil
         connection = nil
+        inFlight = 0
+        processed()
         onState?(.failed(failure))
     }
 }

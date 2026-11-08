@@ -20,6 +20,7 @@ import RunnerCore
     private var now = 0.0
     private var outbox: [(at: Double, packet: Packet)] = []
     private var reader = FrameReader()
+    private var sentWaiters: [@MainActor () -> Void] = []
 
     private init(delay: ClosedRange<Double>, seed: UInt64) {
         self.delay = delay
@@ -53,6 +54,11 @@ import RunnerCore
         enqueue(.fin)
     }
 
+    /// Called once the outbox is empty: everything sent so far has been handed to the other end.
+    public func afterSending(_ done: @escaping @MainActor () -> Void) {
+        if outbox.isEmpty { done() } else { sentWaiters.append(done) }
+    }
+
     /// Moves this end's clock to `time` and hands the other end everything due.
     public func pump(to time: Double) {
         now = time
@@ -62,6 +68,11 @@ import RunnerCore
             case .bytes(let data): peer?.receive(data)
             case .fin: peer?.peerClosed()
             }
+        }
+        if outbox.isEmpty, !sentWaiters.isEmpty {
+            let waiters = sentWaiters
+            sentWaiters = []
+            for w in waiters { w() }
         }
     }
 

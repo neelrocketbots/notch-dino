@@ -41,9 +41,17 @@ final class IslandContainerView: NSView {
         model.setPlayerName(name)
     }
 
-    /// ⌘Q in the island or Quit in the menu: say bye to a race opponent first.
-    public func applicationWillTerminate(_ notification: Notification) {
-        model?.prepareToQuit()
+    /// ⌘Q in the island or Quit in the menu. Mid-race, say bye first and quit once it has gone out (at most 300 ms
+    /// later); with no race, quit at once.
+    public func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let decision = QuitGate.begin(
+            sendBye: { [weak self] sent in self?.model?.prepareToQuit(then: sent) ?? false },
+            after: { seconds, run in
+                DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { MainActor.assumeIsolated { run() } }
+            },
+            // Always on a later turn: replying before `.terminateLater` has been returned is not allowed.
+            reply: { ok in DispatchQueue.main.async { NSApp.reply(toApplicationShouldTerminate: ok) } })
+        return decision == .now ? .terminateNow : .terminateLater
     }
 
     public func applicationDidFinishLaunching(_ notification: Notification) {

@@ -38,9 +38,14 @@ extension IslandModel {
         publish()
     }
 
-    /// ⌘Q or Quit: tell the other Mac before going. If the bye doesn't make it, their heartbeat notices within 5 s.
-    public func prepareToQuit() {
-        if let s = session, !s.isOver { raceInput(.leave(.quit)) }
+    /// ⌘Q or Quit: tell the other Mac before going. Returns false when no race link is connected (nothing to say);
+    /// otherwise sends the bye and calls `sent` once it has gone out. If it never does, their heartbeat notices
+    /// within 5 s.
+    public func prepareToQuit(then sent: @escaping @MainActor () -> Void) -> Bool {
+        guard let s = session, !s.isOver, let l = link else { return false }
+        raceInput(.leave(.quit))
+        l.afterSending(sent)
+        return true
     }
 
     public func setPlayerName(_ name: String) {

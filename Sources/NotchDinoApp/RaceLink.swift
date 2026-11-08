@@ -11,6 +11,9 @@ public enum RaceLinkState: Equatable, Sendable { case connecting, ready, failed(
     var onState: (@MainActor (RaceLinkState) -> Void)? { get set }
     func send(_ message: RaceMessage)
     func close()
+    /// Calls `done` once everything sent so far, and the close if there was one, has gone out (or the link has
+    /// failed, so nothing more will).
+    func afterSending(_ done: @escaping @MainActor () -> Void)
 }
 
 /// A race someone nearby is hosting, read from their Bonjour TXT record.
