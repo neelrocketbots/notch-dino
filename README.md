@@ -121,8 +121,9 @@ Racing needs the app bundle (see Build): macOS only asks for Local Network acces
 
 Requires macOS 26 or later and Swift 6.2. Built on [NotchKit](https://github.com/neelrocketbots/notchkit).
 
-    swift run NotchDino      # play
-    swift test               # game rules and app logic
+    swift run NotchDino      # play solo
+    swift test               # game rules, race logic and app logic
+    scripts/build-app.sh     # Notch Dino.app in .build/app (ad-hoc signed); needed for racing
 
 ## License
 
