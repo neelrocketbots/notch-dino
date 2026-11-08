@@ -43,7 +43,7 @@ import RunnerCore
         scene.isPaused = true
         scene.reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         scene.driver = self
-        if let id = display?.id, let h = prefs.heights[id] { applyHeight(h) }
+        if let id = display?.id, let h = prefs.heights[id] { applySavedHeight(h) }
         publish()
     }
 
@@ -157,7 +157,7 @@ import RunnerCore
         display = d
         base = Self.makeGeometry(d)
         isFloating = false
-        applyHeight(prefs.heights[d.id] ?? base.expandedSize.height)
+        applySavedHeight(prefs.heights[d.id] ?? base.expandedSize.height)
         panel?.orderFrontRegardless()
     }
 
@@ -306,6 +306,11 @@ import RunnerCore
             persistHeight()
         case .ended, .cancel, .corner: break
         }
+    }
+
+    /// A height from settings (or the default) may come from a taller display or a hand edit: keep it within this one.
+    private func applySavedHeight(_ height: Double) {
+        applyHeight(NotchResize.settled(height, min: minHeight, max: maxHeight))
     }
 
     private func applyHeight(_ height: Double) {

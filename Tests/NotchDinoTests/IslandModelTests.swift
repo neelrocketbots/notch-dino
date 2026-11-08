@@ -91,3 +91,25 @@ import Testing
     m.move(.cancel)
     #expect(!m.isFloating && !m.isMoving)
 }
+
+/// The test display is 982 pt tall with no Dock inset, so the tallest island is 982 − 80 (Dock clearance) = 902.
+@MainActor @Test(arguments: [5.0, 50_000.0])
+func savedHeightIsClampedToTheDisplayOnLaunch(saved: Double) {
+    let d = UserDefaults(suiteName: "notchDino.model.\(UUID().uuidString)")!
+    LayoutStore(defaults: d).save(NotchLayoutPrefs(heights: [1: saved]))
+    let m = makeModel(defaults: d)
+    let h = Double(m.geometry.expandedSize.height)
+    #expect(h >= NotchGeometry.idleHeight && h <= 902)
+    #expect(m.game.world.width > 0 && m.game.world.width.isFinite)
+}
+
+@MainActor @Test(arguments: [5.0, 50_000.0])
+func savedHeightIsClampedToTheDisplayOnRehome(saved: Double) {
+    let d = UserDefaults(suiteName: "notchDino.model.\(UUID().uuidString)")!
+    LayoutStore(defaults: d).save(NotchLayoutPrefs(heights: [1: saved]))
+    let m = makeModel(defaults: d)
+    m.rehome(displays: [m.display!])
+    let h = Double(m.geometry.expandedSize.height)
+    #expect(h >= NotchGeometry.idleHeight && h <= 902)
+    #expect(m.game.world.width > 0 && m.game.world.width.isFinite)
+}
