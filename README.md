@@ -41,6 +41,23 @@ gap, and each of the two openings holds something. Pick your opening.
 
 You can drag the island off the notch to float it anywhere, and resize it while the game is paused.
 
+## Heroes and maps
+
+Pick who flies and where from the **Hero** and **Map** menus under the flame icon in the menu bar. Your choice is
+remembered. It's art only: the rules are the same everywhere.
+
+| Hero | Look |
+| --- | --- |
+| Pip | The red baby dragon. |
+| Moss | Green, with a leaf crest. |
+| Nova | Violet, with gold horns, starry wings and a star tail. |
+
+| Map | Obstacles |
+| --- | --- |
+| Ember Peaks | Obsidian among volcanoes and cycads. |
+| Glacier | Ice crystals among snow-capped peaks and pines. |
+| Night Grove | Thornwood trunks and mossy boulders among hills, mushrooms and fireflies. |
+
 ## Trust
 
 - **No network.** No analytics, no accounts, no ads, nothing sent anywhere.
