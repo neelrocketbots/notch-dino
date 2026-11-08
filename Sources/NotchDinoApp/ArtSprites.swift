@@ -49,7 +49,7 @@ extension Art {
         let up = pose == .wingUp, p = hero.palette
         // far wing, behind the body
         ctx.saveGState(); ctx.translateBy(x: 4, y: 1); ctx.scaleBy(x: 0.7, y: 0.75); ctx.setAlpha(0.75)
-        fill(ctx, wing(up: up), rgb(p.wingFar)); ctx.restoreGState()
+        fill(ctx, heroWing(up: up, hero: hero), rgb(p.wingFar)); ctx.restoreGState()
         // tail and spade
         let tail = CGMutablePath(); tail.move(to: CGPoint(-8, 6)); tail.addQuadCurve(to: CGPoint(-21, 7), control: CGPoint(-15, 11))
         stroke(ctx, tail, rgb(p.body), width: 3.4)
@@ -60,45 +60,66 @@ extension Art {
         } else {
             fill(ctx, polygon([CGPoint(-20, 7), CGPoint(-24, 3.5), CGPoint(-26, 8), CGPoint(-22, 10.5)]), rgb(p.spike))
         }
-        // back spikes
-        for (x, y, a) in [(-6.0, -4.0, -0.6), (-1.0, -5.5, -0.3)] as [(CGFloat, CGFloat, CGFloat)] {
-            at(ctx, x, y, rotate: a) {
-                let s = CGMutablePath(); s.move(to: CGPoint(-2, 1.5)); s.addQuadCurve(to: CGPoint(2, 1.5), control: CGPoint(0, -4)); s.closeSubpath()
-                fill(ctx, s, rgb(p.spike))
+        // back spikes (Rust wears plates instead)
+        if hero == .rust {
+            drawBackPlates(ctx, p)
+        } else {
+            for (x, y, a) in [(-6.0, -4.0, -0.6), (-1.0, -5.5, -0.3)] as [(CGFloat, CGFloat, CGFloat)] {
+                at(ctx, x, y, rotate: a) {
+                    let s = CGMutablePath(); s.move(to: CGPoint(-2, 1.5)); s.addQuadCurve(to: CGPoint(2, 1.5), control: CGPoint(0, -4)); s.closeSubpath()
+                    fill(ctx, s, rgb(p.spike))
+                }
             }
         }
         drawHeadgear(ctx, hero, p)
-        // legs, body, head, snout with one top-lit gradient
+        // legs, body, head, snout with one top-lit gradient (Saffron's belly is rounder, so her legs sit lower)
+        let round = hero == .saffron, legY: CGFloat = round ? 11.8 : 10
         let body = CGMutablePath()
-        body.addPath(CGPath(roundedRect: CGRect(x: -5, y: 10, width: 3.6, height: 4.4), cornerWidth: 1.6, cornerHeight: 1.6, transform: nil))
-        body.addPath(CGPath(roundedRect: CGRect(x: 1.5, y: 10, width: 3.6, height: 4.4), cornerWidth: 1.6, cornerHeight: 1.6, transform: nil))
-        body.addPath(ellipse(CGPoint(-1, 4), 10.5, 8.6))
+        body.addPath(CGPath(roundedRect: CGRect(x: -5, y: legY, width: 3.6, height: 4.4), cornerWidth: 1.6, cornerHeight: 1.6, transform: nil))
+        body.addPath(CGPath(roundedRect: CGRect(x: 1.5, y: legY, width: 3.6, height: 4.4), cornerWidth: 1.6, cornerHeight: 1.6, transform: nil))
+        body.addPath(round ? ellipse(CGPoint(-0.6, 5), 11.6, 9.8) : ellipse(CGPoint(-1, 4), 10.5, 8.6))
         body.addPath(circle(CGPoint(8.5, -5.5), 7.8))
         body.addPath(ellipse(CGPoint(15, -2.5), 4.8, 3.6, 0.1))
         linear(ctx, clip: body, [(0, rgb(p.light)), (0.45, rgb(p.body)), (1, rgb(p.shade))],
                from: CGPoint(-6, -14), to: CGPoint(6, 14))
         // belly and plates
-        fill(ctx, ellipse(CGPoint(3, 7), 6, 4.4, -0.2), rgb(p.belly, 0.9))
-        for y in [5.0, 7.5, 10.0] as [CGFloat] {
-            let l = CGMutablePath(); l.move(to: CGPoint(-1.5, y)); l.addQuadCurve(to: CGPoint(7.5, y - 0.8), control: CGPoint(3, y + 1.2))
-            stroke(ctx, l, rgb(p.shade, 0.45), width: 0.7)
-        }
-        // near wing
-        fill(ctx, wing(up: up), rgb(p.shade))
-        stroke(ctx, wingRibs(up: up), rgb(p.rib, 0.6), width: 0.8)
-        if hero == .nova {
-            for (x, y) in (up ? [(-9.0, -13.0), (-14.0, -9.0), (-12.0, -4.0)] : [(-10.0, 9.0), (-15.0, 5.0), (-12.0, 1.0)]) as [(CGFloat, CGFloat)] {
-                fill(ctx, circle(CGPoint(x, y), 0.8), white(0.85))
+        if round {
+            fill(ctx, ellipse(CGPoint(3.4, 8), 7.4, 5.6, -0.2), rgb(p.belly, 0.9))
+            for y in [5.0, 7.8, 10.6] as [CGFloat] {
+                let l = CGMutablePath(); l.move(to: CGPoint(-2.6, y + 0.4)); l.addQuadCurve(to: CGPoint(9, y - 0.6), control: CGPoint(3.4, y + 1.8))
+                stroke(ctx, l, rgb(p.shade, 0.45), width: 0.7)
+            }
+        } else {
+            fill(ctx, ellipse(CGPoint(3, 7), 6, 4.4, -0.2), rgb(p.belly, 0.9))
+            for y in [5.0, 7.5, 10.0] as [CGFloat] {
+                let l = CGMutablePath(); l.move(to: CGPoint(-1.5, y)); l.addQuadCurve(to: CGPoint(7.5, y - 0.8), control: CGPoint(3, y + 1.2))
+                stroke(ctx, l, rgb(p.shade, 0.45), width: 0.7)
             }
         }
+        // near wing
+        switch hero {
+        case .pip, .moss, .nova:
+            fill(ctx, wing(up: up), rgb(p.shade))
+            stroke(ctx, wingRibs(up: up), rgb(p.rib, 0.6), width: 0.8)
+            if hero == .nova {
+                for (x, y) in (up ? [(-9.0, -13.0), (-14.0, -9.0), (-12.0, -4.0)] : [(-10.0, 9.0), (-15.0, 5.0), (-12.0, 1.0)]) as [(CGFloat, CGFloat)] {
+                    fill(ctx, circle(CGPoint(x, y), 0.8), white(0.85))
+                }
+            }
+        default:
+            drawNearWing(ctx, up: up, hero: hero, p)
+        }
+        drawHeroOverlay(ctx, hero, p)
         // face
+        let ink = rgb(hero == .sable ? 0xFFB347 : Palette.eye)
         if pose == .crash {
             let x = CGMutablePath()
             x.move(to: CGPoint(9.6, -8.4)); x.addLine(to: CGPoint(12.6, -5.4))
             x.move(to: CGPoint(12.6, -8.4)); x.addLine(to: CGPoint(9.6, -5.4))
-            stroke(ctx, x, rgb(Palette.eye), width: 1.2)
+            stroke(ctx, x, ink, width: 1.2)
         } else {
-            fill(ctx, circle(CGPoint(11, -6.5), 2.3), rgb(Palette.eye))
+            fill(ctx, circle(CGPoint(11, -6.5), 2.3), ink)
+            if hero == .sable { fill(ctx, circle(CGPoint(11.2, -6.4), 1.3), rgb(Palette.eye)) }
             fill(ctx, circle(CGPoint(11.8, -7.4), 0.8), white(1))
         }
         fill(ctx, circle(CGPoint(18, -4), 0.7), rgb(p.shade))
@@ -108,10 +129,13 @@ extension Art {
         stroke(ctx, arc(CGPoint(8.5, -5.5), 5.6, from: .pi * 1.1, to: .pi * 1.5), white(0.5), width: 1.3)
     }
 
-    /// Pip's cream horns, Moss's leaf crest, Nova's gold swept horns.
+    /// Pip's cream horns, Moss's leaf crest, Nova's gold swept horns; Coral's frills and Frost's crystals live in
+    /// ArtHeroes.swift, and the rest wear Pip's horns in their own colour.
     static func drawHeadgear(_ ctx: CGContext, _ hero: Hero, _ p: HeroPalette) {
         switch hero {
-        case .pip, .nova:
+        case .coral: drawFarFrill(ctx, p)
+        case .frost: drawCrystalHorns(ctx, p)
+        case .pip, .nova, .sable, .saffron, .tide, .rust, .blossom:
             let sweep: CGFloat = hero == .nova ? -0.35 : 0
             for (x, y, a) in [(5.5, -12.5, -0.7), (10.0, -13.5, -0.35)] as [(CGFloat, CGFloat, CGFloat)] {
                 at(ctx, x, y, rotate: a + sweep) {
@@ -184,6 +208,7 @@ extension Art {
     /// One shard, tip at the top. The ceiling's shards are this texture flipped. The map picks the material:
     /// obsidian, ice or thornwood.
     static func shard(map: MapTheme = .volcano) -> CGImage {
+        guard map.isClassic else { return image(shardSize) { drawThemedShard($0, map: map) } }
         let m = map.palette
         return image(shardSize) { ctx in
             let w: CGFloat = 18, base: CGFloat = 320, split = w * 0.42
@@ -202,7 +227,6 @@ extension Art {
                 t += 24 + CGFloat(rng.unit()) * 14
             }
             switch map {
-            case .volcano: break
             case .glacier:
                 // frost glints scattered down the crystal
                 var y: CGFloat = 30
@@ -221,6 +245,7 @@ extension Art {
                     fill(ctx, ellipse(CGPoint(w * 0.7, y), 1.8, 3), rgba(0, 0, 0, 0.4))
                     y += 60 + CGFloat(rng.unit()) * 40
                 }
+            default: break
             }
             let edge = CGMutablePath(); edge.move(to: CGPoint(1.2, base)); edge.addLine(to: CGPoint(1.2, 11))
             stroke(ctx, edge, white(0.32), width: 1)
@@ -244,6 +269,7 @@ extension Art {
     static let chunkSize = CGSize(width: 26, height: 29)
 
     static func chunk(map: MapTheme = .volcano) -> CGImage {
+        guard map.isClassic else { return image(chunkSize) { drawThemedChunk($0, map: map) } }
         let m = map.palette
         return image(chunkSize) { ctx in
             let w: CGFloat = 26, h: CGFloat = 29, cx = w / 2, cy = h / 2

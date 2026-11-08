@@ -2,7 +2,7 @@ import CoreGraphics
 import RunnerCore
 
 extension Art {
-    private static func rgba(_ c: MapPalette.RGB, _ a: CGFloat) -> CGColor { rgba(c.0, c.1, c.2, a) }
+    static func rgba(_ c: MapPalette.RGB, _ a: CGFloat) -> CGColor { rgba(c.0, c.1, c.2, a) }
 
     /// The sky over the whole island (the band's fade sits on top in SwiftUI), translucent near the horizon so the
     /// island's frost shows, with a haze above the ground in the map's light (ember, ice or firefly).
@@ -16,12 +16,14 @@ extension Art {
             let haze = CGPath(rect: CGRect(x: 0, y: groundY - 60, width: size.width, height: 60), transform: nil)
             linear(ctx, clip: haze, [(0, rgba(m.haze, 0)), (1, rgba(m.haze, 0.12))],
                    from: CGPoint(0, groundY - 60), to: CGPoint(0, groundY))
+            if !map.isClassic { drawSkyExtras(ctx, size: size, groundY: groundY, map: map) }
         }
     }
 
     static let starsTileSize = CGSize(width: 700, height: 190)
 
     static func stars(map: MapTheme = .volcano) -> CGImage {
+        guard map.isClassic else { return image(starsTileSize) { drawThemedAmbient($0, map: map) } }
         let m = map.palette
         return image(starsTileSize) { ctx in
             var rng = SeededRandom(seed: 7)
@@ -82,6 +84,8 @@ extension Art {
                 }
                 hill(340, 44, 130, m.hillFar)
                 hill(110, 58, 140, m.hill)
+            default:
+                drawThemedFar(ctx, map: map)
             }
         }
     }
@@ -138,6 +142,8 @@ extension Art {
                     }
                 }
                 mushroom(62, 40, 14); mushroom(84, 22, 9); fern(130, 18); mushroom(220, 48, 17); fern(258, 22)
+            default:
+                drawThemedNear(ctx, map: map)
             }
         }
     }
@@ -145,6 +151,7 @@ extension Art {
     /// The ground strip from y = 4 (the ground line) down, with tufts in the 4 pt above it. The scene puts the image's
     /// top 4 pt above the ground line.
     static func ground(width: CGFloat, height: CGFloat, map: MapTheme = .volcano) -> CGImage {
+        guard map.isClassic else { return image(CGSize(width: width, height: height)) { drawThemedGround($0, width: width, height: height, map: map) } }
         let m = map.palette
         return image(CGSize(width: width, height: height)) { ctx in
             ctx.setFillColor(rgba(m.ground, map == .glacier ? 0.32 : 0.66)); ctx.fill(CGRect(x: 0, y: 4, width: width, height: height - 4))

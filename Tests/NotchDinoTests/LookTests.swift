@@ -71,3 +71,64 @@ private func pixels(_ img: CGImage) -> Data { img.dataProvider!.data! as Data }
                             looks: LookStore(defaults: d), seed: 1)
     #expect(again.hero == .nova && again.map == .glacier)
 }
+
+@Test func heroesAndMapsComeInMenuOrderWithUniqueNames() {
+    #expect(Hero.allCases.map(\.rawValue) == ["pip", "moss", "nova", "coral", "frost", "sable", "saffron", "tide", "rust", "blossom"])
+    #expect(MapTheme.allCases.map(\.rawValue) == ["volcano", "glacier", "grove", "dunes", "skyisles", "bamboo", "crystal", "storm",
+                                                  "autumn", "ruins"])
+    #expect(Set(Hero.allCases.map(\.name)).count == Hero.allCases.count)
+    #expect(Set(MapTheme.allCases.map(\.name)).count == MapTheme.allCases.count)
+    #expect(MapTheme.allCases.map(\.name).suffix(7) == ["Dune Sea", "Sky Isles", "Bamboo Vale", "Crystal Caves", "Storm Coast",
+                                                        "Autumn Woods", "Lost Ruins"])
+}
+
+@Test func lookStoreRoundTripsEveryHeroAndMap() {
+    let d = freshDefaults(); let s = LookStore(defaults: d)
+    for h in Hero.allCases {
+        s.save(hero: h)
+        #expect(d.string(forKey: LookStore.heroKey) == h.rawValue && s.hero() == h)
+    }
+    for m in MapTheme.allCases {
+        s.save(map: m)
+        #expect(d.string(forKey: LookStore.mapKey) == m.rawValue && s.map() == m)
+    }
+    d.set("coralreef", forKey: LookStore.heroKey); d.set("dune", forKey: LookStore.mapKey)
+    #expect(s.hero() == .pip && s.map() == .volcano)
+}
+
+@Test func everyHeroPoseRendersDistinctly() {
+    for h in Hero.allCases {
+        let poses = PipPose.allCases.map { Art.pip($0, hero: h) }
+        for img in poses { #expect(alpha(img, px: 54, 50) > 200) }
+        #expect(Set(poses.map(pixels)).count == PipPose.allCases.count)
+    }
+}
+
+@Test func everyMapFillsItsObstacleTilesAndDrawsEveryLayer() {
+    for m in MapTheme.allCases {
+        let shard = Art.shard(map: m), chunk = Art.chunk(map: m)
+        #expect(shard.height == 640 && chunk.height == 58)
+        // the shard fills its tile edge to edge below the tip, and the chunk is solid at its centre
+        for x in [1, 18, 34] { #expect(alpha(shard, px: x, 300) > 200 && alpha(shard, px: x, 620) > 200) }
+        #expect(alpha(chunk, px: 26, 29) > 200)
+        let ground = Art.ground(width: 489, height: 24, map: m)
+        #expect(alpha(ground, px: 100, 30) > 0)
+        for img in [Art.stars(map: m), Art.volcanoes(map: m), Art.cycads(map: m), ground] {
+            #expect(pixels(img).contains { $0 != 0 })
+        }
+    }
+    #expect(Set(MapTheme.allCases.map { pixels(Art.chunk(map: $0)) }).count == MapTheme.allCases.count)
+    #expect(Set(MapTheme.allCases.map { pixels(Art.stars(map: $0)) }).count == MapTheme.allCases.count)
+    #expect(Set(MapTheme.allCases.map { pixels(Art.ground(width: 489, height: 24, map: $0)) }).count == MapTheme.allCases.count)
+    let size = CGSize(width: 445, height: 282)
+    #expect(Set(MapTheme.allCases.map { pixels(Art.sky(size: size, fieldTop: 34, fieldHeight: 240, groundY: 259.6, map: $0)) }).count
+        == MapTheme.allCases.count)
+}
+
+@MainActor @Test func everyLookAppliesToTheScene() {
+    let scene = RunnerScene(islandSize: CGSize(width: 445, height: 282), band: 32)
+    for (h, m) in zip(Hero.allCases, MapTheme.allCases.reversed()) {
+        scene.apply(hero: h, map: m)
+        #expect(scene.hero == h && scene.map == m)
+    }
+}
