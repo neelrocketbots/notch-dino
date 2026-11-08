@@ -11,3 +11,8 @@
 !/scripts/
 !/assets/
 .DS_Store
+founder/
+mockups/
+docs/
+PRODUCT.md
+DESIGN.md
