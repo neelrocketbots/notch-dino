@@ -214,7 +214,7 @@ import SpriteKit
         ghostTag = tag
     }
 
-    /// Mirrors the ghost's state: position, tilt, wing pose and a fainter crash.
+    /// Mirrors the ghost's state: position, tilt, wing pose, its own Tiny or Bloat size and a fainter crash.
     func syncGhost(_ s: GameState?) {
         guard let node = ghostNode else { return }
         guard let s else { node.isHidden = true; ghostTag?.isHidden = true; return }
@@ -224,9 +224,11 @@ import SpriteKit
         node.zRotation = -CGFloat(crashed ? 0.45 : max(-0.4, min(0.6, s.pipVY * 0.0026)))
         node.texture = ghostTextures[crashed ? .crash : (Int(s.time * 8) % 2 == 0 ? .wingUp : .wingDown)]
         node.alpha = crashed ? 0.35 : 0.5
+        let size = CGFloat(s.effects.radiusScale)
+        node.setScale(artScale * size)
         ghostTag?.isHidden = false
         ghostTag?.alpha = crashed ? 0.6 : 1
-        ghostTag?.position = CGPoint(x: node.position.x, y: node.position.y - 30 * artScale)
+        ghostTag?.position = CGPoint(x: node.position.x, y: node.position.y - 30 * artScale * size)
     }
 
     // MARK: Per-frame

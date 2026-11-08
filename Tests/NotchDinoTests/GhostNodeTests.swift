@@ -104,4 +104,27 @@ import Testing
         m.handle(.flapKey)   // start
         #expect(m.scene.ghostHero == .tide && m.scene.ghostTag?.text == "Tia" && m.scene.hero == .pip)
     }
+
+    /// Ruling: the ghost shows the opponent's own Tiny or Bloat size, scaled from the ghost state like the local Pip.
+    @MainActor @Test func theGhostShowsItsOwnTinyOrBloatSize() throws {
+        let sc = scene()
+        sc.setGhost(hero: .moss, name: "Ana")
+        let node = try #require(sc.ghostNode)
+        var s = Runner.newGame(world: World.forField(width: 421, height: 240), seed: 1, best: 0)
+        s.phase = .running; s.pipY = 60
+        sc.syncGhost(s)
+        let normal = node.xScale
+        #expect(normal > 0 && abs(node.yScale - normal) < 1e-6)
+        s.effects.tiny = 3
+        sc.syncGhost(s)
+        #expect(abs(node.xScale - normal * 0.7) < 1e-4 && abs(node.yScale - normal * 0.7) < 1e-4)
+        s.effects.tiny = 0; s.effects.bloat = 3
+        sc.syncGhost(s)
+        #expect(abs(node.xScale - normal * 1.3) < 1e-4 && abs(node.yScale - normal * 1.3) < 1e-4)
+        // The local Pip's own size is untouched by the ghost's.
+        #expect(abs(sc.pipNode.xScale - normal) < 1e-4)
+        s.effects.bloat = 0
+        sc.syncGhost(s)
+        #expect(abs(node.xScale - normal) < 1e-4)
+    }
 }
