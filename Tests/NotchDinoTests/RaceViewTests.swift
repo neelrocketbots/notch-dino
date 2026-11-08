@@ -67,6 +67,24 @@ import Testing
         }
     }
 
+    @MainActor @Test func anEndCardWithNoKnownOpponentShowsTheLobbyBand() {
+        let (m, net, _) = raceModel()
+        m.handle(.hotKey); m.handle(.raceKey); m.handle(.flapKey)   // host
+        let guest = net.remotes[0]
+        net.links[0].connect()
+        guest.send(.hello(proto: RaceMessage.protocolVersion + 1, rules: Params.rulesVersion, name: "Ana", hero: "moss"))
+        pump(net, to: 0)
+        #expect(m.race == .match(.over(.versionMismatch), .host) && m.raceHUD == nil)
+        #expect(RaceEars.lobbyTitle(.match(.over(.versionMismatch), .host), hud: nil) == "Race nearby")
+        #expect(RaceEars.lobbyTitle(.match(.over(.full), .guest), hud: nil) == "Race nearby")
+        #expect(RaceEars.lobbyTitle(.match(.over(.versionMismatch), .guest), hud: nil) == "Race nearby")
+        // Once the opponent is known, the band keeps their name and score.
+        let (r, _, _, _, _) = racing()
+        #expect(RaceEars.lobbyTitle(.match(.over(.opponentLeft), .host), hud: r.raceHUD) == nil && r.raceHUD != nil)
+        #expect(RaceEars.lobbyTitle(.match(.waiting, .host), hud: nil) == "Your race")
+        #expect(RaceEars.lobbyTitle(.lobby(hosts: [], selection: 0), hud: nil) == "Race nearby")
+    }
+
     @MainActor @Test func theResultCardShowsTheRematchRequest() throws {
         let (m, net, clock, guest, inbox) = racing()
         guard case .start(let seed, _) = inbox.messages.first(where: { if case .start = $0 { true } else { false } }) else {

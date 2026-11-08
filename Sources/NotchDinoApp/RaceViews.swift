@@ -327,11 +327,17 @@ struct RaceEars: View {
         .accessibilityElement(children: .combine)
     }
 
-    private var lobbyTitle: String? {
+    private var lobbyTitle: String? { Self.lobbyTitle(screen, hud: hud) }
+
+    /// The left ear's words when the band shows the lobby ("local only" on the right), or nil when it shows the
+    /// opponent's name and score. An end card before the opponent is known (a version mismatch, a full race) shows
+    /// the lobby band rather than empty ears.
+    static func lobbyTitle(_ screen: RaceScreen, hud: RaceHUD?) -> String? {
         switch screen {
         case .explainer, .denied, .lobby, .unreachable: "Race nearby"
         case .match(.waiting, .host), .match(.ready, .host): "Your race"
         case .match(.waiting, .guest), .match(.ready, .guest): "Race nearby"
+        case .match(.over, _): hud == nil ? "Race nearby" : nil
         case .match: nil
         }
     }
