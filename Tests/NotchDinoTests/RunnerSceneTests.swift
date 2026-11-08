@@ -196,3 +196,65 @@ func tinyAndBloatEasePipToTheirSize(p: Pickup, scale: Double) {
     scene.sync(s)
     #expect(scene.pipEffects.featherOrbit == nil)
 }
+
+// MARK: Effects on the field
+
+@MainActor @Test func speedLinesShowOnlyDuringRush() {
+    let (scene, s0) = effectScene()
+    var s = s0
+    scene.sync(s)
+    #expect(!scene.fieldEffects.speedLinesShown)
+    s.effects.apply(.rush)
+    scene.sync(s)
+    #expect(scene.fieldEffects.speedLinesShown)
+    scene.reduceMotion = true
+    scene.sync(s)
+    #expect(!scene.fieldEffects.speedLinesShown)
+    scene.reduceMotion = false
+    s.effects.tick(Params.rushTime)
+    scene.sync(s)
+    #expect(!scene.fieldEffects.speedLinesShown)
+}
+
+@MainActor @Test func shimmerShowsDuringUpdraftUnlessReduceMotion() {
+    let (scene, s0) = effectScene()
+    var s = s0
+    s.effects.apply(.updraft)
+    scene.sync(s)
+    #expect(scene.fieldEffects.shimmerShown)
+    scene.reduceMotion = true
+    scene.sync(s)
+    #expect(!scene.fieldEffects.shimmerShown)
+}
+
+@MainActor @Test func pickingUpPopsTheIconAndBurstsSixSparks() {
+    let (scene, s) = effectScene()
+    let before = scene.children.filter { $0.name == "flourish" }.count
+    scene.consume([.picked(.tiny)], state: s)
+    let added = scene.children.filter { $0.name == "flourish" }
+    #expect(added.count == before + 3)   // name tag, icon pop, sparks
+    #expect(added.compactMap { $0 as? SKEmitterNode }.map(\.numParticlesToEmit) == [6])
+}
+
+@MainActor @Test func bouncePuffSitsAtTheEdgePipTouched() {
+    let (scene, s0) = effectScene()
+    var s = s0
+    s.pipY = Params.ground - 12
+    scene.consume([.bounced], state: s)
+    let ground = scene.children.last { $0.name == "flourish" }!
+    #expect(abs(ground.position.y - scene.scenePoint(x: 0, y: Params.ground).y) < 0.01)
+    s.pipY = 12
+    scene.consume([.bounced], state: s)
+    let ceiling = scene.children.last { $0.name == "flourish" }!
+    #expect(abs(ceiling.position.y - scene.scenePoint(x: 0, y: 0).y) < 0.01)
+}
+
+@MainActor @Test func pausedHidesSpeedLinesAndShimmer() {
+    let (scene, s0) = effectScene()
+    var s = s0; s.effects.apply(.rush); s.effects.apply(.updraft)
+    scene.sync(s)
+    #expect(scene.fieldEffects.speedLinesShown && scene.fieldEffects.shimmerShown)
+    s.phase = .paused
+    scene.sync(s)
+    #expect(!scene.fieldEffects.speedLinesShown && !scene.fieldEffects.shimmerShown)
+}

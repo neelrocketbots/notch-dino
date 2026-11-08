@@ -52,3 +52,46 @@ extension Art {
         }
     }
 }
+
+/// Sprites for the field effects.
+extension Art {
+    // MARK: On the field
+
+    /// Rush's speed lines for a field of `size`: thin pale streaks at seeded heights, tiled sideways by the scene.
+    static func speedLines(size: CGSize) -> CGImage {
+        image(size) { ctx in
+            var rng = SeededRandom(seed: 21)
+            let count = max(6, Int(size.height / 14))
+            for _ in 0..<count {
+                let y = CGFloat(rng.unit()) * size.height, x = CGFloat(rng.unit()) * size.width
+                let len = 30 + CGFloat(rng.unit()) * 60, a = 0.18 + CGFloat(rng.unit()) * 0.25
+                let l = CGMutablePath(); l.move(to: CGPoint(x, y)); l.addLine(to: CGPoint(x + len, y))
+                stroke(ctx, l, rgba(255, 222, 212, a), width: 1)
+            }
+        }
+    }
+
+    static let shimmerSize = CGSize(width: 30, height: 34)
+
+    /// Updraft's heat shimmer: warm wavy lines rising under Pip.
+    static func shimmer() -> CGImage {
+        image(shimmerSize) { ctx in
+            for (i, x) in ([6.0, 12.0, 18.0, 24.0] as [CGFloat]).enumerated() {
+                let l = CGMutablePath(); l.move(to: CGPoint(x, 33))
+                let d: CGFloat = i % 2 == 0 ? 2.2 : -2.2
+                l.addCurve(to: CGPoint(x, 3), control1: CGPoint(x + d, 23), control2: CGPoint(x - d, 13))
+                stroke(ctx, l, rgba(255, 206, 150, 0.4), width: 1.2)
+            }
+        }
+    }
+
+    /// The puff where a feather bounce meets the ceiling or the ground.
+    static func bouncePuff() -> CGImage {
+        image(CGSize(width: 30, height: 14)) { ctx in
+            for (x, y, r) in [(6.0, 8.0, 4.5), (13.0, 6.0, 5.5), (21.0, 7.5, 4.8), (26.0, 9.0, 3.2), (10.0, 10.0, 3.6)]
+                as [(CGFloat, CGFloat, CGFloat)] {
+                fill(ctx, circle(CGPoint(x, y), r), rgba(236, 232, 236, 0.75))
+            }
+        }
+    }
+}

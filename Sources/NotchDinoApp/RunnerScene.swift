@@ -47,6 +47,7 @@ import SpriteKit
     private let streaks = SKSpriteNode(texture: SKTexture(cgImage: Art.streaks()))
     private let ash = SKSpriteNode()
     let pipEffects = PipEffects()
+    let fieldEffects = FieldEffects()
 
     // Flourish timers, driven by events.
     private var flapTimer = 0.0, puffTimer = 0.0, breathTimer = 0.0, breathAngle: CGFloat = 0
@@ -82,6 +83,7 @@ import SpriteKit
         breath.anchorPoint = CGPoint(x: 0, y: 1 - 8.0 / 18.0); breath.position = CGPoint(x: 18, y: 2); breath.zPosition = 3; pipNode.addChild(breath)
         ash.anchorPoint = .zero; ash.zPosition = 6; addChild(ash)
         pipEffects.attach(to: pipNode)
+        fieldEffects.attach(to: self)
         layout(islandSize: islandSize, band: band)
         // Nothing is drawn raw: until the first update the scene shows an idle game for the world it was laid out for.
         if fieldHeight > 0 {
@@ -142,6 +144,7 @@ import SpriteKit
         let ashSize = CGSize(width: islandSize.width, height: islandSize.height)
         ash.texture = SKTexture(cgImage: Art.smoke(size: ashSize, map: map)); ash.size = ashSize
         pipNode.setScale(artScale)
+        fieldEffects.layout(width: islandSize.width, fieldHeight: fieldHeight, fieldBottom: islandSize.height - fieldTop - fieldHeight)
     }
 
     // MARK: Per-frame
@@ -176,10 +179,15 @@ import SpriteKit
             case .melted(_, let part):
                 breathTimer = 0.32
                 breathAngle = part == .bottom ? -0.8 : part == .top ? 0.8 : 0
-            case .picked(let p): pop(p.label, good: p.isGood, at: pip)
+            case .picked(let p):
+                pop(p.label, good: p.isGood, at: pip)
+                fieldEffects.pickupPop(p, at: pip, in: self, artScale: artScale)
             case .crashed: burst(at: pip)
             case .gatePassed, .milestone, .newBest: break
-            case .bounced: break
+            case .bounced:
+                let ceiling = state.pipY < Params.worldHeight / 2
+                let contact = scenePoint(x: state.world.pipX, y: ceiling ? 0 : Params.ground)
+                fieldEffects.bouncePuff(at: contact, ceiling: ceiling, in: self, artScale: artScale, reduceMotion: reduceMotion)
             }
             if case .hiccup = e { pop("hic", good: false, at: pip, size: 11) }
         }
@@ -223,6 +231,7 @@ import SpriteKit
         pipNode.texture = pipEffects.texture(pose, normal: pipTextures[pose], bloated: s.effects.bloat > 0)
         pipEffects.sync(s, reduceMotion: reduceMotion)
         pipNode.setScale(artScale * pipEffects.sizeScale)
+        fieldEffects.sync(s, pip: pipNode.position, artScale: artScale, reduceMotion: reduceMotion)
         puff.alpha = s.effects.emberCharge ? 0 : CGFloat(puffTimer / 0.4)
         chargeEmber.isHidden = !(s.effects.emberCharge && breathTimer == 0) || s.phase == .crashed
         breath.isHidden = breathTimer == 0
