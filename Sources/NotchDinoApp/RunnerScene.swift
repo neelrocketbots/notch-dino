@@ -175,6 +175,7 @@ import SpriteKit
             case .picked(let p): pop(p.label, good: p.isGood, at: pip)
             case .crashed: burst(at: pip)
             case .gatePassed, .milestone, .newBest: break
+            case .bounced: break
             }
             if case .hiccup = e { pop("hic", good: false, at: pip, size: 11) }
         }

@@ -1,5 +1,8 @@
 /// Every game rule number, in world units (the world is 200 units tall) and seconds.
 public enum Params {
+    /// The version of these rules. The v1 rules are 1; every change to the rules (a number here, an effect, the odds)
+    /// bumps it, so two games can check they play by the same rules.
+    public static let rulesVersion = 2
     public static let worldHeight = 200.0
     public static let ground = 188.0                 // top of the ground strip
     public static let gravity = 900.0
@@ -26,6 +29,10 @@ public enum Params {
     public static let updraftGravity = 0.6, stoneGravity = 1.35
     public static let updraftTime = 5.0, stoneTime = 5.0, hiccupTime = 4.0, ashTime = 4.0
     public static let hiccupRate = 1.5, hiccupStrength = 0.55
+    public static let tinyScale = 0.7, bloatScale = 1.3, tinyTime = 5.0, bloatTime = 5.0
+    public static let rushSpeed = 1.3, rushTime = 4.0
+    /// A feather bounce sets Pip's edge `featherInset` units inside the field, moving away at `flapVelocity × featherBounce`.
+    public static let featherBounce = 0.8, featherInset = 2.0
     public static let idleY = 96.0
     public static let spawnAhead = 20.0
     public static let despawnX = -45.0

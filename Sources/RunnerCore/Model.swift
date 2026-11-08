@@ -12,9 +12,9 @@ public enum Phase: Equatable, Sendable { case idle, running, paused, crashed }
 public enum Side: Equatable, Sendable { case upper, lower }
 
 public enum Pickup: String, CaseIterable, Equatable, Sendable {
-    case ember, egg, updraft, ashCloud, stoneScale, hiccups
-    public static let good: [Pickup] = [.ember, .egg, .updraft]
-    public static let bad: [Pickup] = [.ashCloud, .stoneScale, .hiccups]
+    case ember, egg, updraft, ashCloud, stoneScale, hiccups, feather, tiny, rush, bloat
+    public static let good: [Pickup] = [.ember, .egg, .updraft, .feather, .tiny]
+    public static let bad: [Pickup] = [.ashCloud, .stoneScale, .hiccups, .rush, .bloat]
     public var isGood: Bool { Pickup.good.contains(self) }
     public var label: String {
         switch self {
@@ -24,16 +24,23 @@ public enum Pickup: String, CaseIterable, Equatable, Sendable {
         case .ashCloud: "Ash cloud"
         case .stoneScale: "Stone scale"
         case .hiccups: "Hiccups!"
+        case .feather: "Feather!"
+        case .tiny: "Tiny!"
+        case .rush: "Rush!"
+        case .bloat: "Bloat!"
         }
     }
-    /// Seconds a timed effect lasts; 0 for instant pickups.
+    /// Seconds a timed effect lasts; 0 for instant pickups and charges.
     public var duration: Double {
         switch self {
         case .updraft: Params.updraftTime
         case .stoneScale: Params.stoneTime
         case .hiccups: Params.hiccupTime
         case .ashCloud: Params.ashTime
-        case .ember, .egg: 0
+        case .tiny: Params.tinyTime
+        case .bloat: Params.bloatTime
+        case .rush: Params.rushTime
+        case .ember, .egg, .feather: 0
         }
     }
 }
@@ -74,28 +81,42 @@ public struct Gate: Equatable, Sendable, Identifiable {
 
 public struct Effects: Equatable, Sendable {
     public var emberCharge = false
+    /// One feather charge: the next ceiling or ground contact bounces instead of crashing.
+    public var feather = false
     public var updraft = 0.0, stoneScale = 0.0, hiccups = 0.0, ashCloud = 0.0
+    public var tiny = 0.0, bloat = 0.0, rush = 0.0
     public init() {}
 
     public var gravityScale: Double {
         (updraft > 0 ? Params.updraftGravity : 1) * (stoneScale > 0 ? Params.stoneGravity : 1)
     }
 
+    /// Pip's collision radius multiplier: Tiny's or Bloat's while one runs (they cancel, so never both), else 1.
+    public var radiusScale: Double { tiny > 0 ? Params.tinyScale : bloat > 0 ? Params.bloatScale : 1 }
+
+    /// The scroll speed multiplier: Rush's while it runs, else 1. `GameState.scrollSpeed` applies the cap after it.
+    public var speedScale: Double { rush > 0 ? Params.rushSpeed : 1 }
+
     public mutating func tick(_ dt: Double) {
         updraft = max(0, updraft - dt); stoneScale = max(0, stoneScale - dt)
         hiccups = max(0, hiccups - dt); ashCloud = max(0, ashCloud - dt)
+        tiny = max(0, tiny - dt); bloat = max(0, bloat - dt); rush = max(0, rush - dt)
     }
 
-    /// Applies a pickup's lasting effect. Timers refresh rather than stack; Updraft and Stone scale cancel each other.
-    /// The egg's points are handled by the runner.
+    /// Applies a pickup's lasting effect. Timers refresh rather than stack; Updraft and Stone scale cancel each other,
+    /// and so do Tiny and Bloat. Ember and feather are single charges. The egg's points are handled by the runner.
     public mutating func apply(_ p: Pickup) {
         switch p {
         case .ember: emberCharge = true
+        case .feather: feather = true
         case .egg: break
         case .updraft: updraft = p.duration; stoneScale = 0
         case .stoneScale: stoneScale = p.duration; updraft = 0
         case .hiccups: hiccups = p.duration
         case .ashCloud: ashCloud = p.duration
+        case .tiny: tiny = p.duration; bloat = 0
+        case .bloat: bloat = p.duration; tiny = 0
+        case .rush: rush = p.duration
         }
     }
 
@@ -105,7 +126,11 @@ public struct Effects: Equatable, Sendable {
         case .stoneScale: stoneScale
         case .hiccups: hiccups
         case .ashCloud: ashCloud
+        case .tiny: tiny
+        case .bloat: bloat
+        case .rush: rush
         case .ember: emberCharge ? 1 : 0
+        case .feather: feather ? 1 : 0
         case .egg: 0
         }
     }
@@ -141,6 +166,14 @@ public struct GameState: Equatable, Sendable {
     }
 }
 
+extension GameState {
+    /// Pip's collision radius right now: `Params.pipRadius` scaled by Tiny or Bloat.
+    public var pipRadius: Double { Params.pipRadius * effects.radiusScale }
+
+    /// How fast the world scrolls right now: the ramped speed times Rush, capped at `Params.speedMax`.
+    public var scrollSpeed: Double { min(Params.speedMax, speed * effects.speedScale) }
+}
+
 public enum GameEvent: Equatable, Sendable {
     case flapped
     case gatePassed(score: Int)
@@ -150,4 +183,6 @@ public enum GameEvent: Equatable, Sendable {
     case picked(Pickup)
     case melted(gateID: Int, part: GatePart)
     case hiccup
+    /// A feather charge turned a ceiling or ground contact into a bounce.
+    case bounced
 }

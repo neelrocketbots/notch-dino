@@ -152,7 +152,7 @@ import RunnerCore
             case .newBest(let n): bestStore.save(n); announce("New best, \(n)")
             case .crashed(let n): announce("Crashed at \(n)")
             case .picked(let p): announce(p.label)
-            case .flapped, .gatePassed, .hiccup, .melted: break
+            case .flapped, .gatePassed, .hiccup, .melted, .bounced: break
             }
         }
     }

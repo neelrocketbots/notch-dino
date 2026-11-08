@@ -300,6 +300,9 @@ extension Art {
             case .ashCloud: drawAsh(ctx)
             case .stoneScale: drawStone(ctx)
             case .hiccups: drawHiccups(ctx)
+            // Stand-ins so the new pickups render; the redraw in ArtPickups.swift replaces this switch.
+            case .feather, .tiny: warmHalo(ctx, 15)
+            case .rush, .bloat: warnRing(ctx)
             }
         }
     }
