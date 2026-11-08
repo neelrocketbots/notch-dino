@@ -1,0 +1,12 @@
+# Only the app is tracked. Everything else in this folder (specs, plans,
+# mockups, founder research, tool workspaces) stays local.
+/*
+!/.gitignore
+!/Package.swift
+!/Package.resolved
+!/Sources/
+!/Tests/
+!/README.md
+!/LICENSE
+!/scripts/
+.DS_Store

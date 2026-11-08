@@ -1,0 +1,15 @@
+{
+  "originHash" : "96febd87fd79e2da28b4b409260ca5a014f473e5606fa2f81b5ccd1a3c689eec",
+  "pins" : [
+    {
+      "identity" : "notchkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/neelrocketbots/notchkit.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "96eba0ca35e20510ff5d6d0aa909f98ba42b9d62"
+      }
+    }
+  ],
+  "version" : 3
+}
