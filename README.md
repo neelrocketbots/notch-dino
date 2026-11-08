@@ -20,7 +20,9 @@ Click the notch, press **⌃⌥Space**, or choose **Play** from the flame icon i
 | Key | Action |
 | --- | --- |
 | ⌃⌥Space | Open or fold the game, from any app |
-| Space, ↑ or click | Flap (also starts a run, and retries after a crash) |
+| Space, ↑ or click | Flap (also starts a run after a 3-2-1, and retries after a crash) |
+| P | Pause in place. P or Space resumes after a 3-2-1 |
+| R | Race someone on your local network (on the idle screen) |
 | Esc | Pause and fold. Switching to another app does the same |
 | ⌘Q | Quit, while the game is open |
 
@@ -86,9 +88,28 @@ remembered. It's art only: the rules are the same everywhere.
 | Autumn Woods | Birch trunks under an orange canopy. |
 | Lost Ruins | Vine-wrapped stone columns among jungle temples. |
 
+## Racing
+
+Two Macs on the same network can race the same course at the same time. Press **R** on the idle screen, or choose
+**Race Nearby…** from the flame icon, then host a race or join one from the list. You see the other player as a
+translucent ghost of their hero, on the host's map. The race runs until both dragons have crashed: the higher score
+wins, golden eggs included, and equal scores tie.
+
+| Key | In a race |
+| --- | --- |
+| Space | Flap. The host starts the race; on the result card, Space asks for a rematch |
+| P | Pause both players. Only the player who paused can resume. 3 pauses each, 60 s at most |
+| Esc | Fold while flying (this pauses the race). On a race panel, leave |
+| N | Change your player name in the lobby (or Player Name… in the menu bar) |
+
+Leaving, quitting or a lost connection ends the match for both players. Race scores never touch your solo best.
+Racing needs the app bundle (see Build): macOS only asks for Local Network access for an app.
+
 ## Trust
 
-- **No network.** No analytics, no accounts, no ads, nothing sent anywhere.
+- **No internet.** Racing talks only to one other Mac on your local network, and only while a race is open.
+  No analytics, no accounts, no ads. Nothing listens or looks for other Macs until you press R or choose
+  Race Nearby…, and it all stops when you leave the race.
 - **No special permissions.** The global hot-key is registered with Carbon's `RegisterEventHotKey`, so the app only
   ever hears ⌃⌥Space. It doesn't ask for Accessibility or Input Monitoring access, and keys you press while the game
   is folded go straight to the app you're using.
