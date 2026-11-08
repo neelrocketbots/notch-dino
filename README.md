@@ -14,7 +14,7 @@ Click the notch, press **⌃⌥Space**, or choose **Play** from the flame icon i
 **Space**. Press **Esc** to fold the game back into the notch. While it's folded, it does nothing at all.
 
 <p align="center">
-  <img src="assets/idle.png" width="270" alt="The island just opened: Pip hovers in place beside a 'space to flap' prompt">
+  <img src="assets/idle.png" width="270" alt="The island just opened: Pip hovers in place beside 'space to flap' and 'R race nearby' prompts">
   &nbsp;
   <img src="assets/crash.png" width="270" alt="A crashed run: a glass card shows the score and 'space to retry'">
 </p>
