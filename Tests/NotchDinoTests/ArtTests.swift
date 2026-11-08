@@ -26,3 +26,36 @@ import Testing
     #expect(Art.ground(width: 489, height: 24).width == 978)
     #expect(Art.smoke(size: CGSize(width: 320, height: 260)).height == 520)
 }
+
+/// Opaque pixels and the mean warmth (red minus blue, 0…255) of the icon's inner 8 pt, which leaves out the bad ring.
+private func iconStats(_ img: CGImage) -> (opaque: Int, warmth: Double) {
+    let data = img.dataProvider!.data! as Data
+    var opaque = 0, warmth = 0.0, n = 0
+    for y in 0..<img.height {
+        for x in 0..<img.width {
+            let i = y * img.bytesPerRow + x * 4
+            let a = Double(data[i + 3])
+            if a > 128 { opaque += 1 }
+            let dx = Double(x) - 34, dy = Double(y) - 34
+            guard a > 128, dx * dx + dy * dy < 16 * 16 else { continue }
+            // premultiplied: unpremultiply before comparing channels
+            warmth += (Double(data[i]) - Double(data[i + 2])) * 255 / a
+            n += 1
+        }
+    }
+    return (opaque, n == 0 ? 0 : warmth / Double(n))
+}
+
+@Test(arguments: Pickup.allCases)
+func everyPickupIconIsDrawnAndReadsGoodOrBad(p: Pickup) {
+    let img = Art.pickup(p)
+    #expect(img.width == 68 && img.height == 68)
+    let stats = iconStats(img)
+    #expect(stats.opaque > 600, "\(p) has \(stats.opaque) opaque pixels")
+    if p.isGood { #expect(stats.warmth > 60, "\(p) warmth \(stats.warmth)") } else { #expect(stats.warmth < 25, "\(p) warmth \(stats.warmth)") }
+}
+
+@Test func pickupIconsAreAllDifferent() {
+    let images = Pickup.allCases.map { Art.pickup($0).dataProvider!.data! as Data }
+    #expect(Set(images).count == Pickup.allCases.count)
+}
