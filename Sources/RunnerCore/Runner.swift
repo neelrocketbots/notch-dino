@@ -26,9 +26,8 @@ public enum Runner {
         s.accumulator = 0
     }
 
-    /// Which obsidian part Pip at height `y` touches, if Pip is inside the gate's columns.
-    public static func partHit(_ g: Gate, y: Double) -> GatePart? {
-        let r = Params.pipRadius
+    /// Which obsidian part Pip at height `y`, with collision radius `r`, touches, if Pip is inside the gate's columns.
+    public static func partHit(_ g: Gate, y: Double, radius r: Double = Params.pipRadius) -> GatePart? {
         if y - r < g.gapTop { return .top }
         if y + r > g.gapBottom { return .bottom }
         if g.isFork, abs(y - g.centre) < g.chunk / 2 + r { return .chunk }
@@ -79,6 +78,7 @@ public enum Runner {
             break
         }
 
+        let radiusBefore = s.pipRadius
         s.effects.tick(dt)
         s.pipVY = min(Params.maxFall, s.pipVY + Params.gravity * s.effects.gravityScale * dt)
         s.pipY += s.pipVY * dt
@@ -86,8 +86,9 @@ public enum Runner {
             s.pipVY = Params.flapVelocity * Params.hiccupStrength
             events.append(.hiccup)
         }
+        keepInsideAfterGrowing(&s, from: radiusBefore)   // Tiny may have just ended
 
-        let dx = s.speed * dt
+        let dx = s.scrollSpeed * dt
         s.distance += dx
         s.nextGateX -= dx
         for i in s.gates.indices { s.gates[i].x -= dx }
@@ -96,12 +97,12 @@ public enum Runner {
 
         if !resolveGates(&s, events: &events) { return }
 
-        if s.pipY - Params.pipRadius < 0 || s.pipY + Params.pipRadius > Params.ground { crash(&s, events: &events) }
+        if s.pipY - s.pipRadius < 0 || s.pipY + s.pipRadius > Params.ground { crash(&s, events: &events) }
     }
 
     /// Passing, pickups and obsidian contact. Returns false when the run crashed.
     static func resolveGates(_ s: inout GameState, events: inout [GameEvent]) -> Bool {
-        let px = s.world.pipX, r = Params.pipRadius
+        let px = s.world.pipX, r = s.pipRadius
         for i in s.gates.indices {
             if !s.gates[i].passed, s.gates[i].x + Params.gateWidth < px - r {
                 s.gates[i].passed = true
@@ -113,7 +114,7 @@ public enum Runner {
             collectPickups(&s, gate: i, events: &events)
             let g = s.gates[i]
             let inColumns = px + r > g.x && px - r < g.x + Params.gateWidth
-            guard inColumns, let part = partHit(g, y: s.pipY), g.melted[part] == nil else { continue }
+            guard inColumns, let part = partHit(g, y: s.pipY, radius: r), g.melted[part] == nil else { continue }
             if s.effects.emberCharge {
                 s.effects.emberCharge = false
                 s.gates[i].melted[part] = 0
@@ -126,24 +127,35 @@ public enum Runner {
         return true
     }
 
-    /// Takes every untaken pickup Pip touches (within `pipRadius + pickupReach`), applying its effect once.
+    /// When Pip has just grown (Bloat taken, Tiny over) from radius `old` and the bigger radius already overlaps the
+    /// ceiling or the ground, nudges Pip inward so its edge sits exactly on that boundary: growing never crashes Pip
+    /// by itself. A Pip whose old edge was already past a boundary is left alone, so that contact still crashes.
+    static func keepInsideAfterGrowing(_ s: inout GameState, from old: Double) {
+        let r = s.pipRadius
+        guard r > old, s.pipY - old >= 0, s.pipY + old <= Params.ground else { return }
+        s.pipY = min(max(s.pipY, r), Params.ground - r)
+    }
+
+    /// Takes every untaken pickup Pip touches (within Pip's current radius + `pickupReach`), applying its effect once.
     static func collectPickups(_ s: inout GameState, gate i: Int, events: inout [GameEvent]) {
         let px = s.world.pipX
-        let reach = Params.pipRadius + Params.pickupReach
+        let reach = s.pipRadius + Params.pickupReach
         for j in s.gates[i].items.indices where !s.gates[i].items[j].taken {
             let item = s.gates[i].items[j]
             let dx = s.gates[i].itemX - px, dy = s.gates[i].itemY(item.side) - s.pipY
             guard dx * dx + dy * dy < reach * reach else { continue }
             s.gates[i].items[j].taken = true
             if item.pickup == .egg { s.score += Params.eggPoints }
+            let radiusBefore = s.pipRadius
             s.effects.apply(item.pickup)
+            keepInsideAfterGrowing(&s, from: radiusBefore)   // Bloat may have just been taken
             events.append(.picked(item.pickup))
         }
     }
 
     static func spawn(_ s: inout GameState) {
         let g = Spawner.makeGate(id: s.spawned, index: s.spawned, x: s.nextGateX, lastCentre: s.lastCentre,
-                                 speed: s.speed, rng: &s.rng)
+                                 speed: s.scrollSpeed, rng: &s.rng)
         s.gates.append(g)
         s.lastCentre = g.centre
         s.spawned += 1
