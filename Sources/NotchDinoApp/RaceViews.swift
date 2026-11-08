@@ -72,41 +72,120 @@ struct Hint: Hashable {
     init(_ key: String, _ action: String) { self.key = key; self.action = action }
 }
 
+/// A key cap: a small rounded glass cap with a 1 pt light border, sized to its text so it never truncates.
+struct KeyCap: View {
+    let key: String
+    var fontSize: CGFloat = 11
+    var weight: Font.Weight = .semibold
+    var height: CGFloat = 20
+    var fill = 0.08
+    var inset: CGFloat = 7
+    var body: some View {
+        Text(key).font(.system(size: fontSize, weight: weight)).foregroundStyle(Ink.text)
+            .lineLimit(1).fixedSize()
+            .padding(.horizontal, inset).frame(height: height)
+            .background(RoundedRectangle(cornerRadius: 7).fill(.white.opacity(fill)))
+            .overlay(RoundedRectangle(cornerRadius: 7).stroke(.white.opacity(0.35), lineWidth: 1))
+    }
+}
+
+/// A key cap and its action. Both keep their natural width: a cap never truncates and a label never wraps.
 struct KeyHint: View {
     let hint: Hint
     var body: some View {
         HStack(spacing: 6) {
-            Text(hint.key).font(.system(size: 11, weight: .semibold)).foregroundStyle(Ink.text)
-                .padding(.horizontal, 7).frame(height: 20)
-                .background(RoundedRectangle(cornerRadius: 7).fill(.white.opacity(0.08)))
-                .overlay(RoundedRectangle(cornerRadius: 7).stroke(.white.opacity(0.35), lineWidth: 1))
+            KeyCap(key: hint.key)
             Text(hint.action).font(.system(size: 12, weight: .semibold)).foregroundStyle(Ink.text)
+                .lineLimit(1).fixedSize()
         }
+        .fixedSize()
         .accessibilityElement(children: .combine)
     }
 }
 
-/// The field dimmed, with a 270-pt glass card: the content, then the keys.
-struct RacePanel<Content: View>: View {
+/// A panel's key hints: one centred row, or two centred rows when one doesn't fit. The text never shrinks.
+struct KeyRow: View {
     let keys: [Hint]
+    static let spacing: CGFloat = 14
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            Self.row(keys)
+            VStack(spacing: 6) {
+                let half = (keys.count + 1) / 2
+                Self.row(Array(keys.prefix(half)))
+                Self.row(Array(keys.dropFirst(half)))
+            }
+        }
+    }
+    private static func row(_ keys: [Hint]) -> some View {
+        HStack(spacing: spacing) { ForEach(keys, id: \.self) { KeyHint(hint: $0) } }.fixedSize()
+    }
+}
+
+/// The field dimmed, with a glass card: the content, then the keys. A standard card is 270 pt wide; a fitting card
+/// (the lobby) grows to what its content and keys need, up to the field's width less `sideMargin` each side.
+struct RacePanel<Content: View>: View {
+    enum Width { case standard, fitting }
+    static var standardWidth: CGFloat { 270 }
+    static var sideMargin: CGFloat { 20 }
+    static var padding: EdgeInsets { EdgeInsets(top: 14, leading: 16, bottom: 14, trailing: 16) }
+    /// The widest a fitting card may be in a field this wide.
+    static func maxWidth(field: CGFloat) -> CGFloat { max(standardWidth, field - 2 * sideMargin) }
+
+    let keys: [Hint]
+    let width: Width
     let content: Content
-    init(keys: [Hint], @ViewBuilder content: () -> Content) {
+    init(keys: [Hint], width: Width = .standard, @ViewBuilder content: () -> Content) {
         self.keys = keys
+        self.width = width
         self.content = content()
     }
     var body: some View {
         ZStack {
             Color.black.opacity(0.38)
-            VStack(spacing: 6) {
-                content
-                HStack(spacing: 14) { ForEach(keys, id: \.self) { KeyHint(hint: $0) } }
-                    .padding(.top, 4)
+            switch width {
+            case .standard:
+                card.frame(width: Self.standardWidth).modifier(PanelGlass())
+            case .fitting:
+                GeometryReader { proxy in
+                    let most = Self.maxWidth(field: proxy.size.width)
+                    ViewThatFits(in: .horizontal) {
+                        card.frame(minWidth: Self.standardWidth).fixedSize(horizontal: true, vertical: false)
+                        card.frame(width: most)
+                    }
+                    .modifier(PanelGlass())
+                    .frame(width: most)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
-            .padding(.horizontal, 16).padding(.vertical, 14)
-            .frame(width: 270)
-            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18))
         }
         .allowsHitTesting(false)
+    }
+    private var card: some View {
+        VStack(spacing: 6) {
+            content
+            KeyRow(keys: keys).padding(.top, 4)
+        }
+        .padding(Self.padding)
+    }
+}
+
+extension EnvironmentValues {
+    /// Draw the mockup's flat stand-in for Liquid Glass, for snapshots: `ImageRenderer` can't draw glass.
+    @Entry var glassStandIn = false
+}
+
+/// A race panel's 18-pt glass card.
+struct PanelGlass: ViewModifier {
+    @Environment(\.glassStandIn) private var standIn
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 18)
+        if standIn {
+            content.background(shape.fill(Color(.sRGB, red: 0.157, green: 0.161, blue: 0.18, opacity: 0.62)))
+                .overlay(shape.stroke(.white.opacity(0.12), lineWidth: 1))
+        } else {
+            content.glassEffect(.regular, in: shape)
+        }
     }
 }
 
@@ -237,7 +316,7 @@ struct RaceOverlay: View {
             }
         case .lobby(let hosts, let selection):
             RacePanel(keys: [Hint("↑↓", "Choose"), Hint("space", selection < hosts.count ? "Join" : "Host"),
-                             Hint("N", "Name"), Hint("esc", "Leave")]) {
+                             Hint("N", "Name"), Hint("esc", "Leave")], width: .fitting) {
                 PanelTitle("Nearby")
                 VStack(spacing: 4) {
                     if hosts.isEmpty {

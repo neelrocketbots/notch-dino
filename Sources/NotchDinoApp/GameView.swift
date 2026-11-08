@@ -113,12 +113,10 @@ struct KeyPrompt: View {
     let action: String
     var body: some View {
         HStack(spacing: 8) {
-            Text(key).font(.system(size: 12, weight: .medium)).foregroundStyle(Ink.text)
-                .padding(.horizontal, 8).frame(height: 22)
-                .background(RoundedRectangle(cornerRadius: 7).fill(.white.opacity(0.14)))
-                .overlay(RoundedRectangle(cornerRadius: 7).stroke(.white.opacity(0.35), lineWidth: 1))
-            Text(action).font(.system(size: 13, weight: .semibold)).foregroundStyle(Ink.text)
+            KeyCap(key: key, fontSize: 12, weight: .medium, height: 22, fill: 0.14, inset: 8)
+            Text(action).font(.system(size: 13, weight: .semibold)).foregroundStyle(Ink.text).lineLimit(1).fixedSize()
         }
+        .fixedSize()
         .padding(.horizontal, 6)
     }
 }

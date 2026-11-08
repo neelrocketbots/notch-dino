@@ -45,6 +45,31 @@ import Testing
         #expect(LobbyWindow.range(count: 5, selection: 5) == 2..<5)   // the "Host a race" row
     }
 
+    /// The key row's height when laid out at a card's inner width: 20 pt is one row, more is two rows.
+    @MainActor private func keyRowHeight(_ keys: [Hint], in width: CGFloat) -> CGFloat {
+        let view = NSHostingView(rootView: KeyRow(keys: keys).frame(width: width))
+        view.frame = CGRect(x: 0, y: 0, width: width, height: 200)
+        view.layoutSubtreeIfNeeded()
+        return view.fittingSize.height
+    }
+
+    @MainActor @Test func keyHintsFitTheirCardsWithoutShrinking() {
+        let inset = RacePanel<EmptyView>.padding.leading + RacePanel<EmptyView>.padding.trailing
+        // The lobby's four hints fit on one row of its card in a 421-pt field (a 185-pt notch's island).
+        let lobby = [Hint("↑↓", "Choose"), Hint("space", "Host"), Hint("N", "Name"), Hint("esc", "Leave")]
+        #expect(keyRowHeight(lobby, in: RacePanel<EmptyView>.maxWidth(field: 421) - inset) == 20)
+        // Squeezed, they take two rows rather than truncating or wrapping.
+        let squeezed = keyRowHeight(lobby, in: 200)
+        #expect(squeezed > 20 && squeezed <= 46)
+        // Every 270-pt card's hints fit on one row.
+        let standard = RacePanel<EmptyView>.standardWidth - inset
+        for keys in [[Hint("space", "Open Settings"), Hint("esc", "Leave")], [Hint("space", "Back to lobby"), Hint("esc", "Fold")],
+                     [Hint("space", "Back to solo"), Hint("esc", "Fold")], [Hint("space", "Continue"), Hint("esc", "Not now")],
+                     [Hint("space", "Waiting…"), Hint("esc", "Leave")], [Hint("P", "Resume"), Hint("esc", "Leave")]] {
+            #expect(keyRowHeight(keys, in: standard) == 20, "\(keys)")
+        }
+    }
+
     @MainActor @Test func everyRaceScreenRenders() {
         let (m, _, _, _, _) = racing()
         let ana = RaceHost(id: "a", name: "Ana", hero: "moss", map: "glacier")
