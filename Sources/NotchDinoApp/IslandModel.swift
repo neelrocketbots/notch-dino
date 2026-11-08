@@ -167,6 +167,7 @@ import RunnerCore
     private func publish() {
         if phase != game.phase { phase = game.phase }
         let h = HUD.make(game)
+        if h.countdown != hud.countdown, let n = h.countdown { announce("\(n)") }
         if h != hud { hud = h }
     }
 

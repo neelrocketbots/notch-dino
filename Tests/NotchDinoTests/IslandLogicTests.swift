@@ -28,7 +28,7 @@ import Testing
 }
 
 @Test func keysPassThroughWhenFolded() {
-    for code: UInt16 in [49, 126, 53, 12] {
+    for code: UInt16 in [49, 126, 53, 12, 35] {
         #expect(KeyRouter.action(keyCode: code, modifiers: code == 12 ? .command : [], isOpen: false) == nil)
     }
 }

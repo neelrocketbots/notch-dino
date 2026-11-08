@@ -14,6 +14,8 @@ public struct HUD: Equatable, Sendable {
     public var score: Int
     public var best: Int
     public var chips: [Chip]
+    /// 3, 2 or 1 while counting down; nil otherwise.
+    public var countdown: Int? = nil
 
     public static let empty = HUD(score: 0, best: 0, chips: [])
 
@@ -25,6 +27,6 @@ public struct HUD: Equatable, Sendable {
             let f = s.effects.fraction(p)
             if f > 0 { chips.append(Chip(pickup: p, fraction: min(1, (f * 20).rounded(.up) / 20))) }
         }
-        return HUD(score: s.score, best: s.best, chips: chips)
+        return HUD(score: s.score, best: s.best, chips: chips, countdown: s.phase.countdownNumber)
     }
 }

@@ -47,7 +47,7 @@ struct GameView: View {
                 Color.black.opacity(0.38)
                 VStack(spacing: 10) {
                     Text("Paused").font(.system(size: 17, weight: .semibold)).foregroundStyle(Ink.text)
-                    KeyPrompt(action: "to resume")
+                    KeyPrompt(action: "or P to resume")
                 }
                 .frame(width: 210, height: 96)
                 .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 24))
@@ -69,7 +69,9 @@ struct GameView: View {
                 .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 24))
             }
             .allowsHitTesting(false)
-        case .running, .countdown:
+        case .countdown:
+            CountdownBadge(number: model.hud.countdown ?? 3)
+        case .running:
             EmptyView()
         }
     }
@@ -133,5 +135,25 @@ struct Ears: View {
         }
         .padding(.horizontal, 26)
         .frame(height: band)
+    }
+}
+
+/// 3, 2, 1 in a round glass badge at the field's centre. Numbers pop in; with Reduce Motion they swap in place.
+struct CountdownBadge: View {
+    let number: Int
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        ZStack {
+            Text("\(number)")
+                .font(.system(size: 44, weight: .bold)).monospacedDigit().foregroundStyle(Ink.text)
+                .id(number)
+                .transition(reduceMotion ? .identity : .scale(scale: 1.35).combined(with: .opacity))
+        }
+        .frame(width: 86, height: 86)
+        .glassEffect(.regular, in: Circle())
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.22), value: number)
+        .allowsHitTesting(false)
+        .accessibilityLabel("\(number)")
     }
 }
