@@ -28,14 +28,14 @@ import Testing
 }
 
 @Test func keysPassThroughWhenFolded() {
-    for code: UInt16 in [49, 126, 53, 12, 35] {
+    for code: UInt16 in [49, 126, 53, 12, 35, 15, 45, 125] {
         #expect(KeyRouter.action(keyCode: code, modifiers: code == 12 ? .command : [], isOpen: false) == nil)
     }
 }
 
 @Test func keysWhenOpen() {
     #expect(KeyRouter.action(keyCode: 49, modifiers: [], isOpen: true) == .island(.flapKey))
-    #expect(KeyRouter.action(keyCode: 126, modifiers: [], isOpen: true) == .island(.flapKey))
+    #expect(KeyRouter.action(keyCode: 126, modifiers: [], isOpen: true) == .island(.upKey))
     #expect(KeyRouter.action(keyCode: 53, modifiers: [], isOpen: true) == .island(.escape))
     #expect(KeyRouter.action(keyCode: 12, modifiers: .command, isOpen: true) == .quit)
     #expect(KeyRouter.action(keyCode: 12, modifiers: [], isOpen: true) == nil)
@@ -52,7 +52,7 @@ import Testing
 
 @Test func shiftSpaceStillFlaps() {
     #expect(KeyRouter.action(keyCode: 49, modifiers: .shift, isOpen: true) == .island(.flapKey))
-    #expect(KeyRouter.action(keyCode: 126, modifiers: .shift, isOpen: true) == .island(.flapKey))
+    #expect(KeyRouter.action(keyCode: 126, modifiers: .shift, isOpen: true) == .island(.upKey))
 }
 
 @Test func escapeIgnoresModifiers() {

@@ -1,6 +1,7 @@
 import AppKit
 import NotchKit
 import Observation
+import RaceCore
 import RunnerCore
 
 @MainActor @Observable public final class IslandModel: NotchHandleDriver, RunnerSceneDriver {
@@ -13,23 +14,43 @@ import RunnerCore
     public private(set) var hud: HUD = .empty
     public private(set) var hero: Hero
     public private(set) var map: MapTheme
+    /// The race screen; nil in solo play.
+    public internal(set) var race: RaceScreen?
+    public internal(set) var raceHUD: RaceHUD?
+    /// "Ana crashed at 9 · pass 9 to win", while it applies.
+    public internal(set) var raceNotice: String?
+    public internal(set) var playerName: String
 
     // Not observed: change every frame.
     @ObservationIgnored public var game: GameState
     @ObservationIgnored let scene: RunnerScene
     @ObservationIgnored public weak var panel: IslandPanel?
     @ObservationIgnored public private(set) var display: NotchDisplay?
+    @ObservationIgnored public internal(set) var session: RaceSession?
+    @ObservationIgnored var link: RaceLink?
+    @ObservationIgnored let network: RaceNetwork
+    @ObservationIgnored let raceStore: RaceStore
+    @ObservationIgnored var raceTimer: Timer?
+    /// A join in progress: who, and when (on `clock`). Cleared once the link connects (ruling 1).
+    @ObservationIgnored var joinAttempt: (host: RaceHost, since: Double)?
+    /// Seconds on a monotonic clock; tests replace it.
+    @ObservationIgnored var clock: @MainActor () -> Double = { ProcessInfo.processInfo.systemUptime }
+    /// N in the lobby: ask for a new player name. Set by the app delegate.
+    @ObservationIgnored public var onAskName: (@MainActor () -> Void)?
+    /// Opens System Settings at Privacy & Security › Local Network. Set by the app delegate.
+    @ObservationIgnored public var onOpenPrivacy: (@MainActor () -> Void)?
 
-    @ObservationIgnored private let bestStore: BestScoreStore
+    @ObservationIgnored let bestStore: BestScoreStore
     @ObservationIgnored private let layoutStore: LayoutStore
     @ObservationIgnored private let lookStore: LookStore
     @ObservationIgnored private var prefs: NotchLayoutPrefs
     @ObservationIgnored private var base: NotchGeometry
-    @ObservationIgnored private var seed: UInt64
+    @ObservationIgnored var seed: UInt64
     @ObservationIgnored private var moveStart: (pointer: CGPoint, frame: CGRect)?
     @ObservationIgnored private var moveStartedDocked = false
 
-    public init(display: NotchDisplay?, best: BestScoreStore, layout: LayoutStore, looks: LookStore = LookStore(), seed: UInt64) {
+    public init(display: NotchDisplay?, best: BestScoreStore, layout: LayoutStore, looks: LookStore = LookStore(),
+                race: RaceStore = RaceStore(), network: RaceNetwork? = nil, seed: UInt64) {
         self.display = display
         self.bestStore = best
         self.layoutStore = layout
@@ -37,6 +58,9 @@ import RunnerCore
         layout.dropLegacyHeights()
         self.hero = looks.hero()
         self.map = looks.map()
+        self.raceStore = race
+        self.network = network ?? NWRaceNetwork()
+        self.playerName = race.name()
         self.prefs = layout.load()
         self.seed = seed
         let g = Self.makeGeometry(display)
@@ -60,6 +84,12 @@ import RunnerCore
     static func fieldSize(_ g: NotchGeometry) -> CGSize {
         CGSize(width: g.expandedSize.width - 2 * NotchGeometry.bodyInset,
                height: g.expandedSize.height - g.notch.height - NotchGeometry.bodyTop - NotchGeometry.bodyBottom)
+    }
+
+    /// The world this island's own field holds: 200 units tall, as wide as the field.
+    var soloWorld: World {
+        let field = Self.fieldSize(geometry)
+        return World.forField(width: field.width, height: field.height)
     }
 
     /// The panel: NotchKit's docked panel, or the island plus a margin on every side when floating.
@@ -98,11 +128,12 @@ import RunnerCore
     // MARK: Commands
 
     public func handle(_ event: IslandEvent) {
+        if race != nil { handleRace(event); return }
         let result = IslandLogic.reduce(isOpen: isOpen, phase: game.phase, event: event)
         for command in result.commands { run(command) }
     }
 
-    private func run(_ command: IslandCommand) {
+    func run(_ command: IslandCommand) {
         switch command {
         case .open:
             if layoutStore.prefersFloating(), let id = display?.id, prefs.origins[id] != nil { floatAtSavedOrigin() }
@@ -131,6 +162,8 @@ import RunnerCore
             scene.reset()
             scene.sync(game)
             run(.flap)
+        case .openRace:
+            openRace()
         }
     }
 
@@ -138,7 +171,7 @@ import RunnerCore
 
     func sceneTick(elapsed: Double) -> (state: GameState, events: [GameEvent]) {
         let events = Runner.advance(&game, elapsed: elapsed)
-        react(to: events)
+        if race != nil { raceTick(events) } else { react(to: events) }
         publish()
         return (game, events)
     }
@@ -157,14 +190,14 @@ import RunnerCore
         }
     }
 
-    private func announce(_ text: String) {
+    func announce(_ text: String) {
         guard let panel else { return }
         NSAccessibility.post(element: panel, notification: .announcementRequested,
                              userInfo: [.announcement: text, .priority: NSAccessibilityPriorityLevel.high.rawValue])
     }
 
     /// Only touches observed properties when they change, so SwiftUI is not invalidated every frame.
-    private func publish() {
+    func publish() {
         if phase != game.phase { phase = game.phase }
         let h = HUD.make(game)
         if h.countdown != hud.countdown, let n = h.countdown { announce("\(n)") }
@@ -175,6 +208,7 @@ import RunnerCore
 
     /// The screen set changed: re-home onto the best display and pause.
     public func rehome(displays: [NotchDisplay]) {
+        if race != nil { closeRace() }   // a display change ends the match (spec §6)
         handle(.autoPause)
         clearDrag()
         guard let d = DisplayPicker.pick(displays) else { panel?.orderOut(nil); return }

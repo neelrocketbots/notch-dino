@@ -29,4 +29,15 @@ import Testing
         #expect(!RaceBonjour.isDenied(.dns(-65537)))
         #expect(!RaceBonjour.isDenied(.posix(.ECONNREFUSED)))
     }
+
+    // Ruling 2: a host keeps hosting through a transient wait (no network yet, Wi-Fi switching); only a Local Network
+    // denial or a real failure ends it.
+    @Test func aListenerWaitingWithoutADenialKeepsHosting() {
+        #expect(RaceBonjour.listenerFailure(.waiting(.posix(.ENETDOWN))) == nil)
+        #expect(RaceBonjour.listenerFailure(.waiting(.dns(-65537))) == nil)
+        #expect(RaceBonjour.listenerFailure(.waiting(.dns(-65570))) == .denied)
+        #expect(RaceBonjour.listenerFailure(.failed(.dns(-65570))) == .denied)
+        #expect(RaceBonjour.listenerFailure(.failed(.posix(.EADDRINUSE))) == .lost)
+        for state: NWListener.State in [.setup, .ready, .cancelled] { #expect(RaceBonjour.listenerFailure(state) == nil) }
+    }
 }

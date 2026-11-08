@@ -30,6 +30,18 @@ public enum RaceBonjour {
         if case .dns(let code) = error { return code == -65570 }
         return false
     }
+
+    /// What a listener state means for a host. A wait that isn't a Local Network denial (no network yet, Wi-Fi
+    /// switching) is transient: the listener starts by itself when it can, so hosting carries on (nil). A denial
+    /// ends hosting with the denied screen; any other failure, as a lost link.
+    public static func listenerFailure(_ state: NWListener.State) -> RaceLinkFailure? {
+        switch state {
+        case .waiting(let error): isDenied(error) ? .denied : nil
+        case .failed(let error): isDenied(error) ? .denied : .lost
+        case .setup, .ready, .cancelled: nil
+        @unknown default: nil
+        }
+    }
 }
 
 /// One race connection over Network.framework. All callbacks run on the main queue.
@@ -78,10 +90,7 @@ public enum RaceBonjour {
     }
 
     private func listenerChanged(_ state: NWListener.State) {
-        switch state {
-        case .waiting(let error), .failed(let error): fail(RaceBonjour.isDenied(error) ? .denied : .lost)
-        default: break
-        }
+        if let failure = RaceBonjour.listenerFailure(state) { fail(failure) }
     }
 
     private func accept(_ c: NWConnection) {

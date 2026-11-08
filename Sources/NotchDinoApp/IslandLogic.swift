@@ -1,8 +1,11 @@
 import NotchKit
 import RunnerCore
 
-public enum IslandEvent: Equatable, Sendable { case clickNotch, hotKey, escape, lostKey, autoPause, flapKey, clickField, pauseKey }
-public enum IslandCommand: Equatable, Sendable { case open, fold, pauseGame, flap, newGameAndFlap }
+public enum IslandEvent: Equatable, Sendable {
+    case clickNotch, hotKey, escape, lostKey, autoPause, flapKey, clickField, pauseKey
+    case raceKey, nameKey, upKey, downKey
+}
+public enum IslandCommand: Equatable, Sendable { case open, fold, pauseGame, flap, newGameAndFlap, openRace }
 
 /// The island's policy as a pure function: what an event does, given whether the island is open and the game's phase.
 public enum IslandLogic {
@@ -16,13 +19,15 @@ public enum IslandLogic {
         switch event {
         case .hotKey, .escape, .lostKey, .autoPause: return (false, [.pauseGame, .fold])
         case .clickNotch: return (true, [])
-        case .flapKey, .clickField: return (true, phase == .crashed ? [.newGameAndFlap] : [.flap])
+        case .flapKey, .clickField, .upKey: return (true, phase == .crashed ? [.newGameAndFlap] : [.flap])
         case .pauseKey:
             switch phase {
             case .running: return (true, [.pauseGame])
             case .paused: return (true, [.flap])
             case .idle, .countdown, .crashed: return (true, [])
             }
+        case .raceKey: return (true, phase == .idle ? [.openRace] : [])
+        case .nameKey, .downKey: return (true, [])
         }
     }
 }
@@ -41,19 +46,23 @@ public struct KeyModifiers: OptionSet, Sendable {
 
 /// Keys the open island consumes. While folded nothing is consumed, so typing reaches the frontmost app.
 public enum KeyRouter {
-    public static let space: UInt16 = 49, up: UInt16 = 126, escape: UInt16 = 53, q: UInt16 = 12, p: UInt16 = 35
+    public static let space: UInt16 = 49, up: UInt16 = 126, down: UInt16 = 125, escape: UInt16 = 53, q: UInt16 = 12
+    public static let p: UInt16 = 35, r: UInt16 = 15, n: UInt16 = 45
 
     public static func action(keyCode: UInt16, modifiers: KeyModifiers, isOpen: Bool) -> KeyAction? {
         guard isOpen else { return nil }
+        // Only a bare (or shifted) press counts, so the hot-key (control-option-space) never starts a run, and P, R, N
+        // and the arrows with control, option or command pass through to the frontmost app.
+        let bare = modifiers.isDisjoint(with: [.command, .control, .option])
         switch keyCode {
-        case space, up:
-            // Only a bare press flaps, so the hot-key (control-option-space) never starts a run.
-            return modifiers.isDisjoint(with: [.command, .control, .option]) ? .island(.flapKey) : nil
+        case space: return bare ? .island(.flapKey) : nil
+        case up: return bare ? .island(.upKey) : nil
+        case down: return bare ? .island(.downKey) : nil
         case escape: return .island(.escape)
         case q: return modifiers.contains(.command) ? .quit : nil
-        case p:
-            // Same rule as Space: P with control, option or command passes through to the frontmost app.
-            return modifiers.isDisjoint(with: [.command, .control, .option]) ? .island(.pauseKey) : nil
+        case p: return bare ? .island(.pauseKey) : nil
+        case r: return bare ? .island(.raceKey) : nil
+        case n: return bare ? .island(.nameKey) : nil
         default: return nil
         }
     }

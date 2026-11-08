@@ -1,5 +1,6 @@
 import Foundation
 import NotchKit
+import RaceCore
 
 public struct BestScoreStore: @unchecked Sendable {
     public static let key = "notchDino.best"
@@ -47,4 +48,27 @@ public struct LayoutStore: @unchecked Sendable {
 
     public func prefersFloating() -> Bool { defaults.bool(forKey: Self.floatingKey) }
     public func setPrefersFloating(_ floating: Bool) { defaults.set(floating, forKey: Self.floatingKey) }
+}
+
+/// The player's race name and whether the first-time explainer has been shown.
+public struct RaceStore: @unchecked Sendable {
+    public static let nameKey = "notchDino.playerName"
+    public static let explainedKey = "notchDino.raceExplained"
+    private let defaults: UserDefaults
+    private let fullName: () -> String
+
+    public init(defaults: UserDefaults = .standard, fullName: @escaping () -> String = NSFullUserName) {
+        self.defaults = defaults
+        self.fullName = fullName
+    }
+
+    /// The saved name, else the first word of the Mac user's full name, else "Player". Always cleaned.
+    public func name() -> String {
+        if let saved = defaults.string(forKey: Self.nameKey) { return RaceName.clean(saved) }
+        return RaceName.clean(fullName().split(separator: " ").first.map(String.init) ?? "")
+    }
+
+    public func save(name: String) { defaults.set(RaceName.clean(name), forKey: Self.nameKey) }
+    public var explained: Bool { defaults.bool(forKey: Self.explainedKey) }
+    public func setExplained() { defaults.set(true, forKey: Self.explainedKey) }
 }

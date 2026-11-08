@@ -88,3 +88,43 @@ import RunnerCore
         onState?(.failed(.lost))
     }
 }
+
+/// A `RaceNetwork` made of loopback links, for tests. `links` are this Mac's ends, `remotes` the far ends a test
+/// plays the other Mac through.
+@MainActor public final class LoopbackRaceNetwork: RaceNetwork {
+    public var hosts: [RaceHost] = []
+    public var denied = false
+    public private(set) var isBrowsing = false
+    public private(set) var joined: [RaceHost] = []
+    public private(set) var hostedMaps: [String] = []
+    public private(set) var links: [LoopbackRaceLink] = []
+    public private(set) var remotes: [LoopbackRaceLink] = []
+
+    public init() {}
+
+    public func browse(onHosts: @escaping @MainActor ([RaceHost]) -> Void, onDenied: @escaping @MainActor () -> Void) {
+        isBrowsing = true
+        if denied { onDenied() } else { onHosts(hosts) }
+    }
+
+    public func stopBrowsing() { isBrowsing = false }
+
+    public func host(as me: RacePlayer, map: String) -> RaceLink {
+        isBrowsing = false
+        hostedMaps.append(map)
+        return makeLink()
+    }
+
+    public func join(_ host: RaceHost) -> RaceLink? {
+        isBrowsing = false
+        joined.append(host)
+        return makeLink()
+    }
+
+    private func makeLink() -> RaceLink {
+        let (mine, theirs) = LoopbackRaceLink.pair()
+        links.append(mine)
+        remotes.append(theirs)
+        return mine
+    }
+}
