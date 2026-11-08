@@ -104,6 +104,8 @@ public struct RaceSession: Sendable {
     private var lastPing = -Double.infinity
     private var lobbyPingsLeft = RaceSession.lobbyPings
     private var pausedSince: Double?
+    /// Both players paused at once, so either may resume (plan Decision 8).
+    private var bothPaused = false
 
     /// `seed` feeds the race seeds a host picks; tests pass a fixed one.
     public init(hostingAs me: RacePlayer, map: String, world: World, seed: UInt64) {
@@ -166,6 +168,7 @@ public struct RaceSession: Sendable {
             guard stage == .paused(byMe: true) else { return [] }
             stage = .countdown
             pausedSince = nil
+            bothPaused = false
             return [.send(.resume(inMs: Self.countdownMs)), .resume(countdownSteps: Params.countdownSteps)]
         case .rematchPressed:
             guard case .result = stage, !rematchMine else { return [] }
@@ -220,14 +223,17 @@ public struct RaceSession: Sendable {
                 return [.freeze(atStep: atStep)]
             case .paused(byMe: true):
                 // Both pressed P at once: each run keeps the earlier step, and either player may resume.
+                bothPaused = true
                 return [.freeze(atStep: atStep)]
             case .waiting, .ready, .paused(byMe: false), .result, .over:
                 return []
             }
         case .resume(let inMs):
-            guard case .paused = stage else { return [] }
+            // Only the player who paused resumes (§6). A resume of this Mac's own pause is ignored, not a desync.
+            guard stage == .paused(byMe: false) || (stage == .paused(byMe: true) && bothPaused) else { return [] }
             stage = .countdown
             pausedSince = nil
+            bothPaused = false
             return [.resume(countdownSteps: countdownSteps(inMs))]
         case .crashed(let step, let score):
             guard inRace, theirCrash == nil, var g = ghost else { return [] }
@@ -272,6 +278,7 @@ public struct RaceSession: Sendable {
         pausesLeft -= 1
         stage = .paused(byMe: true)
         pausedSince = now
+        bothPaused = false
         return [.send(.pause(atStep: atStep)), .freeze(atStep: atStep)]
     }
 
@@ -304,6 +311,7 @@ public struct RaceSession: Sendable {
         lastTheirFlap = -1
         pausesLeft = Self.pausesPerRace
         pausedSince = nil
+        bothPaused = false
         localStep = 0
         stage = .countdown
         return [.startGame(seed: seed, countdownSteps: countdownSteps)]

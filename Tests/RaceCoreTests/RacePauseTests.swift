@@ -45,6 +45,51 @@ private func freezes(_ c: [RaceCommand]) -> [RaceCommand] { c.filter { if case .
         #expect(guest.stage == .racing)
     }
 
+    @Test func aPeerCannotResumeAPauseThisMacStarted() {
+        var (host, _, _) = racingPair()
+        _ = host.handle(.pausePressed, now: 1)
+        #expect(host.handle(.received(.resume(inMs: 2_100)), now: 2).isEmpty)
+        #expect(host.stage == .paused(byMe: true) && !host.isOver)
+        _ = host.handle(.received(.ping(t: 2)), now: 2)
+        _ = host.handle(.tick(step: 12, phase: .paused), now: 3)
+        #expect(host.stage == .paused(byMe: true))
+        #expect(host.handle(.resumePressed, now: 3) == [.send(.resume(inMs: 2_100)), .resume(countdownSteps: 252)])
+        #expect(host.stage == .countdown)
+    }
+
+    @Test func aPeerCanResumeAPauseThePeerStarted() {
+        var (host, guest, _) = racingPair()
+        _ = host.handle(.received(sent(guest.handle(.pausePressed, now: 1))[0]), now: 1)
+        #expect(host.stage == .paused(byMe: false))
+        #expect(host.handle(.received(.resume(inMs: 2_100)), now: 2) == [.resume(countdownSteps: 252)])
+        #expect(host.stage == .countdown)
+    }
+
+    @Test func afterSimultaneousPausesTheHostCanResumeToo() {
+        var (host, guest, _) = racingPair()
+        let hostPause = host.handle(.pausePressed, now: 1)
+        let guestPause = guest.handle(.pausePressed, now: 1)
+        _ = host.handle(.received(sent(guestPause)[0]), now: 1)
+        _ = guest.handle(.received(sent(hostPause)[0]), now: 1)
+        let resume = host.handle(.resumePressed, now: 2)
+        #expect(sent(resume) == [.resume(inMs: 2_100)])
+        #expect(guest.handle(.received(.resume(inMs: 2_100)), now: 2) == [.resume(countdownSteps: 252)])
+        #expect(host.stage == .countdown && guest.stage == .countdown)
+    }
+
+    @Test func aSimultaneousPauseDoesNotCarryIntoTheNextPause() {
+        // Simultaneous once, then a fresh pause by this Mac alone: the peer can't resume that one.
+        var (h2, g2, _) = racingPair()
+        let hp = h2.handle(.pausePressed, now: 1)
+        _ = h2.handle(.received(sent(g2.handle(.pausePressed, now: 1))[0]), now: 1)
+        _ = g2.handle(.received(sent(hp)[0]), now: 1)
+        _ = h2.handle(.received(.resume(inMs: 2_100)), now: 2)
+        _ = h2.handle(.tick(step: 20, phase: .running), now: 4.2)
+        #expect(h2.stage == .racing)
+        _ = h2.handle(.pausePressed, now: 5)
+        #expect(h2.handle(.received(.resume(inMs: 2_100)), now: 6).isEmpty && h2.stage == .paused(byMe: true))
+    }
+
     @Test func pDoesNothingDuringTheCountdownButFoldingPauses() {
         var (host, _) = readyPair()
         _ = host.handle(.startPressed, now: 0)
