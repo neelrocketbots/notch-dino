@@ -263,6 +263,7 @@ extension IslandModel {
         guard let s = session else { return }
         let screen = RaceScreen.match(s.stage, s.role)
         if race != screen { race = screen }
+        if rematchAsked != s.rematchMine { rematchAsked = s.rematchMine }
         let h = RaceHUD.make(session: s, game: game)
         if h != raceHUD { raceHUD = h }
     }

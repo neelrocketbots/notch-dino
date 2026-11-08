@@ -20,6 +20,8 @@ import RunnerCore
     /// "Ana crashed at 9 · pass 9 to win", while it applies.
     public internal(set) var raceNotice: String?
     public internal(set) var playerName: String
+    /// This player pressed Space on the result card and is waiting for the other.
+    public internal(set) var rematchAsked = false
 
     // Not observed: change every frame.
     @ObservationIgnored public var game: GameState

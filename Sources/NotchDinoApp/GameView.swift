@@ -24,9 +24,15 @@ struct GameView: View {
         ZStack(alignment: .topLeading) {
             SceneHost(scene: model.scene, paused: !model.isOpen)
             BandFade(band: band, height: g.expandedSize.height, map: model.map).allowsHitTesting(false)
-            Ears(hud: model.hud, phase: model.phase, notchWidth: model.isFloating ? 0 : g.notch.width, band: band)
-                .frame(width: g.expandedSize.width, height: band)
-                .allowsHitTesting(false)
+            Group {
+                if let race = model.race {
+                    RaceEars(screen: race, hud: model.raceHUD, notchWidth: model.isFloating ? 0 : g.notch.width, band: band)
+                } else {
+                    Ears(hud: model.hud, phase: model.phase, notchWidth: model.isFloating ? 0 : g.notch.width, band: band)
+                }
+            }
+            .frame(width: g.expandedSize.width, height: band)
+            .allowsHitTesting(false)
             overlay
                 .frame(width: field.width, height: field.height)
                 .offset(x: field.minX, y: field.minY)
@@ -35,13 +41,23 @@ struct GameView: View {
     }
 
     @ViewBuilder private var overlay: some View {
+        if let race = model.race { RaceOverlay(model: model, screen: race) } else { soloOverlay }
+    }
+
+    @ViewBuilder private var soloOverlay: some View {
         switch model.phase {
         case .idle:
-            KeyPrompt(action: "to flap")
-                .padding(.horizontal, 6).frame(height: 34)
-                .glassEffect(.regular, in: Capsule())
-                .offset(x: 50)
-                .allowsHitTesting(false)
+            VStack(alignment: .leading, spacing: 8) {
+                KeyPrompt(action: "to flap")
+                    .padding(.horizontal, 6).frame(height: 34)
+                    .glassEffect(.regular, in: Capsule())
+                KeyPrompt(key: "R", action: "race nearby")
+                    .padding(.horizontal, 6).frame(height: 30)
+                    .glassEffect(.regular, in: Capsule())
+                    .opacity(0.85)
+            }
+            .offset(x: 50)
+            .allowsHitTesting(false)
         case .paused:
             ZStack {
                 Color.black.opacity(0.38)
@@ -93,10 +109,11 @@ struct BandFade: View {
 }
 
 struct KeyPrompt: View {
+    var key = "space"
     let action: String
     var body: some View {
         HStack(spacing: 8) {
-            Text("space").font(.system(size: 12, weight: .medium)).foregroundStyle(Ink.text)
+            Text(key).font(.system(size: 12, weight: .medium)).foregroundStyle(Ink.text)
                 .padding(.horizontal, 8).frame(height: 22)
                 .background(RoundedRectangle(cornerRadius: 7).fill(.white.opacity(0.14)))
                 .overlay(RoundedRectangle(cornerRadius: 7).stroke(.white.opacity(0.35), lineWidth: 1))
