@@ -10,9 +10,12 @@ let package = Package(
     ],
     targets: [
         .target(name: "RunnerCore"),
-        .target(name: "NotchDinoApp", dependencies: ["RunnerCore", .product(name: "NotchKit", package: "notchkit")]),
+        .target(name: "RaceCore", dependencies: ["RunnerCore"]),
+        .target(name: "NotchDinoApp",
+                dependencies: ["RunnerCore", "RaceCore", .product(name: "NotchKit", package: "notchkit")]),
         .executableTarget(name: "NotchDino", dependencies: ["NotchDinoApp"]),
         .testTarget(name: "RunnerCoreTests", dependencies: ["RunnerCore"]),
-        .testTarget(name: "NotchDinoTests", dependencies: ["NotchDinoApp", "RunnerCore"]),
+        .testTarget(name: "RaceCoreTests", dependencies: ["RaceCore", "RunnerCore"]),
+        .testTarget(name: "NotchDinoTests", dependencies: ["NotchDinoApp", "RunnerCore", "RaceCore"]),
     ]
 )
