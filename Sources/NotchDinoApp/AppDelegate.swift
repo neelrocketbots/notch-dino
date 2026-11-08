@@ -33,6 +33,19 @@ final class IslandContainerView: NSView {
 
     public override init() { super.init() }
 
+    /// Privacy & Security › Local Network in System Settings. A constant, so it needs no actor.
+    nonisolated static let localNetworkSettings = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork")!
+
+    private func askPlayerName() {
+        guard let model, let name = PlayerNamePrompt.ask(current: model.playerName) else { return }
+        model.setPlayerName(name)
+    }
+
+    /// ⌘Q in the island or Quit in the menu: say bye to a race opponent first.
+    public func applicationWillTerminate(_ notification: Notification) {
+        model?.prepareToQuit()
+    }
+
     public func applicationDidFinishLaunching(_ notification: Notification) {
         let display = DisplayPicker.pick(NotchScreens.displays())
         let model = IslandModel(display: display, best: BestScoreStore(), layout: LayoutStore(),
@@ -54,6 +67,8 @@ final class IslandContainerView: NSView {
         panel.orderFrontRegardless()
         self.model = model
         self.panel = panel
+        model.onAskName = { [weak self] in self?.askPlayerName() }
+        model.onOpenPrivacy = { NSWorkspace.shared.open(AppDelegate.localNetworkSettings) }
 
         installStatusItem()
         installHotKey()
@@ -67,6 +82,9 @@ final class IslandContainerView: NSView {
                                 look: { [weak self] in (self?.model?.hero ?? .pip, self?.model?.map ?? .volcano) },
                                 onHero: { [weak self] in self?.model?.choose(hero: $0) },
                                 onMap: { [weak self] in self?.model?.choose(map: $0) })
+        statusItem?.addRaceItems(onRace: { [weak self] in self?.model?.openRace() },
+                                 name: { [weak self] in self?.model?.playerName ?? "" },
+                                 onName: { [weak self] in self?.askPlayerName() })
     }
 
     private func installHotKey() {

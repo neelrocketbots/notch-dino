@@ -7,6 +7,11 @@ import AppKit
     private let toggleItem = NSMenuItem(title: "Play", action: #selector(toggle), keyEquivalent: "")
     private let heroMenu = NSMenu(title: "Hero")
     private let mapMenu = NSMenu(title: "Map")
+    private let raceItem = NSMenuItem(title: "Race Nearby…", action: #selector(race), keyEquivalent: "")
+    private let nameItem = NSMenuItem(title: "Player Name…", action: #selector(askName), keyEquivalent: "")
+    private var onRace: () -> Void = {}
+    private var onName: () -> Void = {}
+    private var playerName: () -> String = { "" }
     private let isOpen: () -> Bool
     private let onToggle: () -> Void
     private let look: () -> (hero: Hero, map: MapTheme)
@@ -52,10 +57,27 @@ import AppKit
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         toggleItem.title = isOpen() ? "Fold (⌃⌥Space)" : "Play (⌃⌥Space)"
+        nameItem.badge = NSMenuItemBadge(string: playerName())
         let current = look()
         for i in heroMenu.items { i.state = (i.representedObject as? String) == current.hero.rawValue ? .on : .off }
         for i in mapMenu.items { i.state = (i.representedObject as? String) == current.map.rawValue ? .on : .off }
     }
+
+    /// Adds Race Nearby… and Player Name… under Play.
+    func addRaceItems(onRace: @escaping () -> Void, name: @escaping () -> String, onName: @escaping () -> Void) {
+        self.onRace = onRace
+        self.playerName = name
+        self.onName = onName
+        guard let menu = item.menu, raceItem.menu == nil else { return }
+        raceItem.target = self
+        nameItem.target = self
+        let at = menu.index(of: toggleItem) + 1
+        menu.insertItem(raceItem, at: at)
+        menu.insertItem(nameItem, at: at + 1)
+    }
+
+    @objc private func race() { onRace() }
+    @objc private func askName() { onName() }
 
     @objc private func toggle() { onToggle() }
 
