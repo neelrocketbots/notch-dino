@@ -30,6 +30,8 @@ extension IslandModel {
         race = nil
         raceHUD = nil
         raceNotice = nil
+        scene.setGhost(hero: nil, name: "")
+        scene.fit(worldWidth: nil)
         scene.apply(hero: hero, map: map)
         game = Runner.newGame(world: soloWorld, seed: seed, best: bestStore.load())
         scene.reset()
@@ -234,6 +236,8 @@ extension IslandModel {
         if started {
             scene.reset()
             raceNotice = nil
+            scene.fit(worldWidth: s.world?.width)
+            scene.setGhost(hero: Hero(rawValue: s.opponent?.hero ?? "") ?? .pip, name: s.opponent?.name ?? "")
         }
         // The host's map, for the scene only: the player's own choice is untouched.
         if let theme = s.map.flatMap(MapTheme.init(rawValue:)) { scene.apply(hero: hero, map: theme) }

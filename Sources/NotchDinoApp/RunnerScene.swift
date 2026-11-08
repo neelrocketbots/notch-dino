@@ -5,6 +5,8 @@ import SpriteKit
 @MainActor protocol RunnerSceneDriver: AnyObject {
     func sceneTick(elapsed: Double) -> (state: GameState, events: [GameEvent])
     func sceneClicked()
+    /// The opponent's run in a race, or nil.
+    var sceneGhost: GameState? { get }
 }
 
 /// Renders `GameState`. It holds no rules: positions come from the state, flourishes (puff, breath, pops, burst) from
@@ -20,6 +22,12 @@ import SpriteKit
     var unitScale: CGFloat { fieldHeight / CGFloat(Params.worldHeight) }
     /// Art is drawn for 1.2 pt/unit; sprites scale by this when the island is resized.
     private var artScale: CGFloat { unitScale / 1.2 }
+    private var fieldWidth: CGFloat { islandSize.width - 24 }
+    /// How far the world's left edge sits from the field's: positive leaves bars, negative crops, 0 solo.
+    private var xOffset: CGFloat {
+        guard let w = worldWidth else { return 0 }
+        return (fieldWidth - CGFloat(w) * unitScale) / 2
+    }
 
     /// The hero and map the art is drawn for. Changing either redraws the textures; rules are untouched.
     private(set) var hero: Hero
@@ -46,6 +54,15 @@ import SpriteKit
     private let stone = SKSpriteNode(texture: SKTexture(cgImage: Art.stonePatches()))
     private let streaks = SKSpriteNode(texture: SKTexture(cgImage: Art.streaks()))
     private let ash = SKSpriteNode()
+    // Race: the opponent's ghost, and bars when the host's world is narrower than this field.
+    private(set) var ghostNode: SKSpriteNode?
+    private(set) var ghostTag: SKLabelNode?
+    /// The hero the ghost is drawn as: the opponent's, any of `Hero.allCases`.
+    private(set) var ghostHero: Hero?
+    private var ghostTextures: [PipPose: SKTexture] = [:]
+    /// The race world's width, when it isn't this field's own. Fitted by height and centred.
+    private(set) var worldWidth: Double?
+    let letterboxBars = [SKSpriteNode(color: .black, size: .zero), SKSpriteNode(color: .black, size: .zero)]
     let pipEffects = PipEffects()
     let fieldEffects = FieldEffects()
 
@@ -82,6 +99,7 @@ import SpriteKit
         chargeEmber.position = CGPoint(x: 20, y: 4); chargeEmber.zRotation = -.pi / 2; chargeEmber.zPosition = 2; pipNode.addChild(chargeEmber)
         breath.anchorPoint = CGPoint(x: 0, y: 1 - 8.0 / 18.0); breath.position = CGPoint(x: 18, y: 2); breath.zPosition = 3; pipNode.addChild(breath)
         ash.anchorPoint = .zero; ash.zPosition = 6; addChild(ash)
+        for bar in letterboxBars { bar.anchorPoint = .zero; bar.zPosition = 9; bar.isHidden = true; addChild(bar) }
         pipEffects.attach(to: pipNode)
         fieldEffects.attach(to: self)
         layout(islandSize: islandSize, band: band)
@@ -114,7 +132,7 @@ import SpriteKit
 
     /// World units (y down, field top-left origin) to scene points (y up, island bottom-left origin).
     func scenePoint(x: Double, y: Double) -> CGPoint {
-        CGPoint(x: 12 + CGFloat(x) * unitScale, y: islandSize.height - (fieldTop + CGFloat(y) * unitScale))
+        CGPoint(x: 12 + xOffset + CGFloat(x) * unitScale, y: islandSize.height - (fieldTop + CGFloat(y) * unitScale))
     }
 
     func layout(islandSize: CGSize, band: CGFloat) {
@@ -145,6 +163,70 @@ import SpriteKit
         ash.texture = SKTexture(cgImage: Art.smoke(size: ashSize, map: map)); ash.size = ashSize
         pipNode.setScale(artScale)
         fieldEffects.layout(width: islandSize.width, fieldHeight: fieldHeight, fieldBottom: islandSize.height - fieldTop - fieldHeight)
+        ghostNode?.setScale(artScale)
+        layoutBars()
+    }
+
+    // MARK: Race
+
+    /// Lays out a race world `worldWidth` units wide (nil: this field's own world again).
+    func fit(worldWidth: Double?) {
+        self.worldWidth = worldWidth
+        layoutBars()
+    }
+
+    private func layoutBars() {
+        let off = max(0, xOffset)
+        let bottom = islandSize.height - fieldTop - fieldHeight
+        for (i, bar) in letterboxBars.enumerated() {
+            bar.isHidden = off < 0.5
+            bar.size = CGSize(width: off, height: fieldHeight)
+            bar.position = CGPoint(x: i == 0 ? 12 : 12 + fieldWidth - off, y: bottom)
+        }
+    }
+
+    /// Shows the opponent as a translucent, slightly washed-out copy of their hero with a name tag; nil removes it.
+    func setGhost(hero: Hero?, name: String) {
+        ghostNode?.removeFromParent()
+        ghostTag?.removeFromParent()
+        ghostNode = nil
+        ghostTag = nil
+        ghostHero = hero
+        guard let hero else { ghostTextures = [:]; return }
+        ghostTextures = Dictionary(uniqueKeysWithValues: PipPose.allCases.map { ($0, SKTexture(cgImage: Art.pip($0, hero: hero))) })
+        let node = SKSpriteNode(texture: ghostTextures[.wingUp], size: Art.pipSize)
+        node.anchorPoint = pipNode.anchorPoint
+        node.alpha = 0.5
+        node.color = .white
+        node.colorBlendFactor = 0.15
+        node.zPosition = 4.5
+        node.setScale(artScale)
+        node.isHidden = true
+        addChild(node)
+        let tag = SKLabelNode(text: name)
+        tag.fontName = NSFont.systemFont(ofSize: 10, weight: .semibold).fontName
+        tag.fontSize = 10
+        tag.fontColor = NSColor(white: 1, alpha: 0.85)
+        tag.zPosition = 4.6
+        tag.isHidden = true
+        addChild(tag)
+        ghostNode = node
+        ghostTag = tag
+    }
+
+    /// Mirrors the ghost's state: position, tilt, wing pose and a fainter crash.
+    func syncGhost(_ s: GameState?) {
+        guard let node = ghostNode else { return }
+        guard let s else { node.isHidden = true; ghostTag?.isHidden = true; return }
+        let crashed = s.phase == .crashed
+        node.isHidden = false
+        node.position = scenePoint(x: s.world.pipX, y: s.pipY)
+        node.zRotation = -CGFloat(crashed ? 0.45 : max(-0.4, min(0.6, s.pipVY * 0.0026)))
+        node.texture = ghostTextures[crashed ? .crash : (Int(s.time * 8) % 2 == 0 ? .wingUp : .wingDown)]
+        node.alpha = crashed ? 0.35 : 0.5
+        ghostTag?.isHidden = false
+        ghostTag?.alpha = crashed ? 0.6 : 1
+        ghostTag?.position = CGPoint(x: node.position.x, y: node.position.y - 30 * artScale)
     }
 
     // MARK: Per-frame
@@ -159,6 +241,7 @@ import SpriteKit
         consume(events, state: state)
         tickFlourishes(dt)
         sync(state)
+        syncGhost(driver.sceneGhost)
     }
 
     override func mouseDown(with event: NSEvent) { driver?.sceneClicked() }

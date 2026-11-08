@@ -178,6 +178,8 @@ import RunnerCore
 
     func sceneClicked() { handle(.clickField) }
 
+    var sceneGhost: GameState? { session?.ghost?.state }
+
     private func react(to events: [GameEvent]) {
         for e in events {
             switch e {
