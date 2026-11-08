@@ -73,3 +73,61 @@ import Testing
     #expect(highest >= 132)   // gap bottom within ~11 units of the ground
     #expect(forkCentres.count > 5)  // fork openings are not always dead centre
 }
+
+// MARK: Weighted fork odds
+
+@Test func everyPickupHasAPositiveWeight() {
+    #expect(Set(Params.goodWeights.keys) == Set(Pickup.good) && Pickup.good.allSatisfy { Params.goodWeights[$0]! > 0 })
+    #expect(Set(Params.badWeights.keys) == Set(Pickup.bad) && Pickup.bad.allSatisfy { Params.badWeights[$0]! > 0 })
+}
+
+@Test func weightedPickLaysTheListEndToEnd() {
+    // good weights 3, 3, 2, 1.5, 1.5 out of 11
+    #expect(Spawner.weightedPick(Pickup.good, weights: Params.goodWeights, u: 0) == .ember)
+    #expect(Spawner.weightedPick(Pickup.good, weights: Params.goodWeights, u: 2.99 / 11) == .ember)
+    #expect(Spawner.weightedPick(Pickup.good, weights: Params.goodWeights, u: 3.01 / 11) == .egg)
+    #expect(Spawner.weightedPick(Pickup.good, weights: Params.goodWeights, u: 7.9 / 11) == .updraft)
+    #expect(Spawner.weightedPick(Pickup.good, weights: Params.goodWeights, u: 8.1 / 11) == .feather)
+    #expect(Spawner.weightedPick(Pickup.good, weights: Params.goodWeights, u: 0.999_999) == .tiny)
+}
+
+@Test func forkPicksMatchTheirWeights() {
+    var rng = SeededRandom(seed: 2026)
+    var good: [Pickup: Int] = [:], bad: [Pickup: Int] = [:]
+    for _ in 0..<100_000 {
+        for item in Spawner.rollItems(&rng) {
+            if item.pickup.isGood { good[item.pickup, default: 0] += 1 } else { bad[item.pickup, default: 0] += 1 }
+        }
+    }
+    for (counts, weights) in [(good, Params.goodWeights), (bad, Params.badWeights)] {
+        let n = Double(counts.values.reduce(0, +)), total = weights.values.reduce(0, +)
+        for (p, w) in weights {
+            let share = Double(counts[p, default: 0]) / n
+            #expect(abs(share - w / total) < 0.01, "\(p): \(share) vs \(w / total)")
+        }
+    }
+}
+
+/// The v1 roll, kept here as the reference: uniform picks over three-item lists.
+private func v1RollItems(_ rng: inout SeededRandom) -> [Item] {
+    let good: [Pickup] = [.ember, .egg, .updraft], bad: [Pickup] = [.ashCloud, .stoneScale, .hiccups]
+    func pick(_ list: [Pickup]) -> Pickup { list[min(list.count - 1, Int(rng.unit() * Double(list.count)))] }
+    let first = pick(good)
+    let roll = rng.unit()
+    let second: Pickup? = roll < 0.55 ? pick(bad) : roll < 0.75 ? pick(good) : nil
+    let firstUpper = rng.unit() < 0.5
+    var items = [Item(side: firstUpper ? .upper : .lower, pickup: first)]
+    if let second { items.append(Item(side: firstUpper ? .lower : .upper, pickup: second)) }
+    return items
+}
+
+@Test func weightedRollDrawsAsOftenAsV1AndKeepsTheSides() {
+    // Same draws per fork ⇒ the RNG is in the same state after every fork ⇒ every later gate is placed as in v1.
+    for seed in UInt64(0)..<10_000 {
+        var new = SeededRandom(seed: seed), old = SeededRandom(seed: seed)
+        let a = Spawner.rollItems(&new), b = v1RollItems(&old)
+        #expect(new == old)
+        #expect(a.map(\.side) == b.map(\.side))
+        #expect(a.map(\.pickup.isGood) == b.map(\.pickup.isGood))
+    }
+}

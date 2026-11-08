@@ -17,12 +17,27 @@ public enum Spawner {
         (Params.topMargin + gap / 2)...(Params.ground - Params.groundMargin - gap / 2)
     }
 
+    /// The pickup that `u` (uniform in [0, 1)) lands on when `list` is laid end to end, each taking its weight's share.
+    public static func weightedPick(_ list: [Pickup], weights: [Pickup: Double], u: Double) -> Pickup {
+        let total = list.reduce(0) { $0 + (weights[$1] ?? 0) }
+        var t = u * total
+        for p in list {
+            let w = weights[p] ?? 0
+            if t < w { return p }
+            t -= w
+        }
+        return list[list.count - 1]   // only reached through rounding at u ≈ 1
+    }
+
     /// One opening always holds a power-up; the other a power-down (55%), a second power-up (20%) or nothing (25%).
+    /// Each pick is weighted (`Params.goodWeights`, `Params.badWeights`) and takes exactly one draw, as in v1, so a
+    /// seed's gate geometry is unchanged.
     public static func rollItems(_ rng: inout SeededRandom) -> [Item] {
-        func pick(_ list: [Pickup]) -> Pickup { list[min(list.count - 1, Int(rng.unit() * Double(list.count)))] }
-        let first = pick(Pickup.good)
+        func good() -> Pickup { weightedPick(Pickup.good, weights: Params.goodWeights, u: rng.unit()) }
+        func bad() -> Pickup { weightedPick(Pickup.bad, weights: Params.badWeights, u: rng.unit()) }
+        let first = good()
         let roll = rng.unit()
-        let second: Pickup? = roll < 0.55 ? pick(Pickup.bad) : roll < 0.75 ? pick(Pickup.good) : nil
+        let second: Pickup? = roll < 0.55 ? bad() : roll < 0.75 ? good() : nil
         let firstUpper = rng.unit() < 0.5
         var items = [Item(side: firstUpper ? .upper : .lower, pickup: first)]
         if let second { items.append(Item(side: firstUpper ? .lower : .upper, pickup: second)) }

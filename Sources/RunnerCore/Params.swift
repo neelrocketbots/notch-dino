@@ -33,6 +33,10 @@ public enum Params {
     public static let rushSpeed = 1.3, rushTime = 4.0
     /// A feather bounce sets Pip's edge `featherInset` units inside the field, moving away at `flapVelocity × featherBounce`.
     public static let featherBounce = 0.8, featherInset = 2.0
+    /// How often each pickup is chosen at a fork, relative to the others in its list. Read in `Pickup.good` /
+    /// `Pickup.bad` order, never in dictionary order, so a seed picks the same item on every machine.
+    public static let goodWeights: [Pickup: Double] = [.ember: 3, .egg: 3, .updraft: 2, .feather: 1.5, .tiny: 1.5]
+    public static let badWeights: [Pickup: Double] = [.ashCloud: 3, .hiccups: 3, .stoneScale: 2, .rush: 1.5, .bloat: 1.5]
     public static let idleY = 96.0
     public static let spawnAhead = 20.0
     public static let despawnX = -45.0
