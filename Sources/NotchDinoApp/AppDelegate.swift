@@ -27,6 +27,7 @@ final class IslandContainerView: NSView {
     private var model: IslandModel?
     private var panel: IslandPanel?
     private var hotKey: HotKey?
+    private var statusItem: StatusItem?
     private var monitors: [Any] = []
     private let log = Logger(subsystem: "NotchDino", category: "app")
 
@@ -54,9 +55,15 @@ final class IslandContainerView: NSView {
         self.model = model
         self.panel = panel
 
+        installStatusItem()
         installHotKey()
         installMonitors()
         installObservers()
+    }
+
+    private func installStatusItem() {
+        statusItem = StatusItem(isOpen: { [weak self] in self?.model?.isOpen ?? false },
+                                onToggle: { [weak self] in self?.model?.handle(.hotKey) })
     }
 
     private func installHotKey() {
@@ -87,7 +94,6 @@ final class IslandContainerView: NSView {
         }
         return true
     }
-
 
     private func installObservers() {
         let nc = NotificationCenter.default
