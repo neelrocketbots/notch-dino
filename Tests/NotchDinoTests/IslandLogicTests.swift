@@ -34,17 +34,35 @@ import Testing
 
 @Test func keysPassThroughWhenFolded() {
     for code: UInt16 in [49, 126, 53, 12] {
-        #expect(KeyRouter.action(keyCode: code, command: code == 12, isOpen: false) == nil)
+        #expect(KeyRouter.action(keyCode: code, modifiers: code == 12 ? .command : [], isOpen: false) == nil)
     }
 }
 
 @Test func keysWhenOpen() {
-    #expect(KeyRouter.action(keyCode: 49, command: false, isOpen: true) == .island(.flapKey))
-    #expect(KeyRouter.action(keyCode: 126, command: false, isOpen: true) == .island(.flapKey))
-    #expect(KeyRouter.action(keyCode: 53, command: false, isOpen: true) == .island(.escape))
-    #expect(KeyRouter.action(keyCode: 12, command: true, isOpen: true) == .quit)
-    #expect(KeyRouter.action(keyCode: 12, command: false, isOpen: true) == nil)
-    #expect(KeyRouter.action(keyCode: 0, command: false, isOpen: true) == nil)
+    #expect(KeyRouter.action(keyCode: 49, modifiers: [], isOpen: true) == .island(.flapKey))
+    #expect(KeyRouter.action(keyCode: 126, modifiers: [], isOpen: true) == .island(.flapKey))
+    #expect(KeyRouter.action(keyCode: 53, modifiers: [], isOpen: true) == .island(.escape))
+    #expect(KeyRouter.action(keyCode: 12, modifiers: .command, isOpen: true) == .quit)
+    #expect(KeyRouter.action(keyCode: 12, modifiers: [], isOpen: true) == nil)
+    #expect(KeyRouter.action(keyCode: 0, modifiers: [], isOpen: true) == nil)
+}
+
+@Test func modifiedSpaceOrUpDoesNotFlap() {
+    // The hot-key (control-option-space) can reach the local monitor right after the island opens.
+    let combos: [KeyModifiers] = [.control, .option, [.control, .option], .command]
+    for code: UInt16 in [49, 126] {
+        for m in combos { #expect(KeyRouter.action(keyCode: code, modifiers: m, isOpen: true) == nil) }
+    }
+}
+
+@Test func shiftSpaceStillFlaps() {
+    #expect(KeyRouter.action(keyCode: 49, modifiers: .shift, isOpen: true) == .island(.flapKey))
+    #expect(KeyRouter.action(keyCode: 126, modifiers: .shift, isOpen: true) == .island(.flapKey))
+}
+
+@Test func escapeIgnoresModifiers() {
+    let combos: [KeyModifiers] = [[], .shift, .control, .option, .command, [.control, .option]]
+    for m in combos { #expect(KeyRouter.action(keyCode: 53, modifiers: m, isOpen: true) == .island(.escape)) }
 }
 
 @Test func displayPickerPrefersBuiltInNotch() {

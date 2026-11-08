@@ -86,10 +86,19 @@ final class IslandContainerView: NSView {
         }) { monitors.append(m) }
     }
 
+    private static func keyModifiers(_ f: NSEvent.ModifierFlags) -> KeyModifiers {
+        var m: KeyModifiers = []
+        if f.contains(.command) { m.insert(.command) }
+        if f.contains(.control) { m.insert(.control) }
+        if f.contains(.option) { m.insert(.option) }
+        if f.contains(.shift) { m.insert(.shift) }
+        return m
+    }
+
     /// Keys are consumed only while open: KeyRouter returns nil when folded, so the event passes through.
     private func consumes(_ event: NSEvent) -> Bool {
         guard let model,
-              let action = KeyRouter.action(keyCode: event.keyCode, command: event.modifierFlags.contains(.command),
+              let action = KeyRouter.action(keyCode: event.keyCode, modifiers: Self.keyModifiers(event.modifierFlags),
                                             isOpen: model.isOpen) else { return false }
         switch action {
         case .quit: NSApp.terminate(nil)

@@ -25,16 +25,28 @@ public enum IslandLogic {
 
 public enum KeyAction: Equatable, Sendable { case island(IslandEvent), quit }
 
+/// The modifiers the key router cares about (Shift and Caps Lock are deliberately absent from decisions).
+public struct KeyModifiers: OptionSet, Sendable {
+    public let rawValue: Int
+    public init(rawValue: Int) { self.rawValue = rawValue }
+    public static let command = KeyModifiers(rawValue: 1 << 0)
+    public static let control = KeyModifiers(rawValue: 1 << 1)
+    public static let option = KeyModifiers(rawValue: 1 << 2)
+    public static let shift = KeyModifiers(rawValue: 1 << 3)
+}
+
 /// Keys the open island consumes. While folded nothing is consumed, so typing reaches the frontmost app.
 public enum KeyRouter {
     public static let space: UInt16 = 49, up: UInt16 = 126, escape: UInt16 = 53, q: UInt16 = 12
 
-    public static func action(keyCode: UInt16, command: Bool, isOpen: Bool) -> KeyAction? {
+    public static func action(keyCode: UInt16, modifiers: KeyModifiers, isOpen: Bool) -> KeyAction? {
         guard isOpen else { return nil }
         switch keyCode {
-        case space, up: return command ? nil : .island(.flapKey)
+        case space, up:
+            // Only a bare press flaps, so the hot-key (control-option-space) never starts a run.
+            return modifiers.isDisjoint(with: [.command, .control, .option]) ? .island(.flapKey) : nil
         case escape: return .island(.escape)
-        case q: return command ? .quit : nil
+        case q: return modifiers.contains(.command) ? .quit : nil
         default: return nil
         }
     }
