@@ -63,3 +63,12 @@ import Testing
     scene.sync(s)
     #expect(scene.firstVolcano!.position.x != v0 && scene.firstCycad!.position.x != c0)
 }
+
+@MainActor @Test func freshSceneIsInItsRestStateBeforeAnySync() {
+    let scene = RunnerScene(islandSize: CGSize(width: 445, height: 282), band: 32)
+    let idle = Runner.newGame(world: World.forField(width: 421, height: 240), seed: 1, best: 0)
+    let expected = scene.scenePoint(x: idle.world.pipX, y: Params.idleY)
+    #expect(scene.ashIsHidden)
+    #expect(scene.overlaysAreHidden)
+    #expect(abs(scene.pipNode.position.x - expected.x) < 0.01 && abs(scene.pipNode.position.y - expected.y) < 0.01)
+}

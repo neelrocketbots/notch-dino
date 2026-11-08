@@ -113,3 +113,12 @@ func savedHeightIsClampedToTheDisplayOnRehome(saved: Double) {
     #expect(h >= NotchGeometry.idleHeight && h <= 902)
     #expect(m.game.world.width > 0 && m.game.world.width.isFinite)
 }
+
+@MainActor @Test func openingSyncsTheSceneBeforeAnyUpdateTick() {
+    let m = makeModel()
+    m.handle(.hotKey)
+    let expected = m.scene.scenePoint(x: m.game.world.pipX, y: m.game.pipY)
+    #expect(m.scene.ashIsHidden)
+    #expect(m.scene.overlaysAreHidden)
+    #expect(abs(m.scene.pipNode.position.x - expected.x) < 0.01 && abs(m.scene.pipNode.position.y - expected.y) < 0.01)
+}

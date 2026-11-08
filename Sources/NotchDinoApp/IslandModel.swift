@@ -87,12 +87,14 @@ import RunnerCore
         self.hero = hero
         lookStore.save(hero: hero)
         scene.apply(hero: hero, map: map)
+        scene.sync(game)
     }
 
     public func choose(map: MapTheme) {
         self.map = map
         lookStore.save(map: map)
         scene.apply(hero: hero, map: map)
+        scene.sync(game)
     }
 
     // MARK: Commands
@@ -108,6 +110,7 @@ import RunnerCore
             if layoutStore.prefersFloating(), let id = display?.id, prefs.origins[id] != nil { floatAtSavedOrigin() }
             isOpen = true
             scene.isPaused = false
+            scene.sync(game)
             panel?.allowsKey = true
             panel?.makeKey()
         case .fold:
@@ -128,6 +131,7 @@ import RunnerCore
             seed &+= 1
             game = Runner.newGame(world: game.world, seed: seed, best: game.best)
             scene.reset()
+            scene.sync(game)
             run(.flap)
         }
     }
@@ -345,6 +349,7 @@ import RunnerCore
         scene.layout(islandSize: g.expandedSize, band: g.notch.height)
         let field = Self.fieldSize(g)
         Runner.resize(&game, world: World.forField(width: field.width, height: field.height))
+        scene.sync(game)
         if let topLeft { float(topLeft: topLeft) } else { placePanel() }
     }
 }

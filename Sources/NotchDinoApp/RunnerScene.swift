@@ -55,6 +55,8 @@ import SpriteKit
     func gateNode(id: Int) -> GateNode? { gateNodes[id] }
     var firstVolcano: SKSpriteNode? { volcanoes.first }
     var firstCycad: SKSpriteNode? { cycads.first }
+    var ashIsHidden: Bool { ash.isHidden || ash.alpha == 0 }
+    var overlaysAreHidden: Bool { chargeEmber.isHidden && breath.isHidden && puff.alpha == 0 && stone.isHidden }
 
     init(islandSize: CGSize, band: CGFloat, hero: Hero = .pip, map: MapTheme = .volcano) {
         self.islandSize = islandSize
@@ -79,6 +81,10 @@ import SpriteKit
         breath.anchorPoint = CGPoint(x: 0, y: 1 - 8.0 / 18.0); breath.position = CGPoint(x: 18, y: 2); breath.zPosition = 3; pipNode.addChild(breath)
         ash.anchorPoint = .zero; ash.zPosition = 6; addChild(ash)
         layout(islandSize: islandSize, band: band)
+        // Nothing is drawn raw: until the first update the scene shows an idle game for the world it was laid out for.
+        if fieldHeight > 0 {
+            sync(Runner.newGame(world: World.forField(width: Double(islandSize.width - 24), height: Double(fieldHeight)), seed: 0, best: 0))
+        }
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
