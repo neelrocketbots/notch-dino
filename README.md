@@ -1,6 +1,10 @@
-# Notch Dino
+<p align="center">
+  <img src="assets/icon.png" width="128" alt="Notch Dino's icon: a frosted glass dragon egg with pointy scales, cracked open at the top, with Pip peeking out and an ember glowing inside">
+</p>
 
-A tiny, free macOS game that opens out of the MacBook notch.
+<h1 align="center">Notch Dino</h1>
+
+<p align="center">A tiny, free macOS game that opens out of the MacBook notch.</p>
 
 <p align="center">
   <img src="assets/run.png" width="560" alt="Pip, a small red dragon, flying across a dark volcanic night sky towards a pair of obsidian shards, with the best score and current score in the notch band above">
@@ -47,7 +51,8 @@ gap, and each of the two openings holds something. Pick your opening.
 
 Tiny and Bloat cancel each other out, and so do Updraft and Stone scale.
 
-You can drag the island off the notch to float it anywhere.
+You can drag the island off the notch to float it anywhere, even onto another display. Drop it at the top centre of
+a display to dock it there.
 
 ## Heroes and maps
 
@@ -125,6 +130,7 @@ Requires macOS 26 or later and Swift 6.2. Built on [NotchKit](https://github.com
     swift test               # game rules, race logic and app logic
     scripts/build-app.sh     # Notch Dino.app in .build/app (ad-hoc signed); needed for racing
     scripts/e2e-race.sh      # two players race over real Bonjour on this Mac
+    scripts/make-icon.sh     # redraw the app icon (scripts/icon/AppIcon.icns)
 
 ## License
 
