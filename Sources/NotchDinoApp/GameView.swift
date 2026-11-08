@@ -119,9 +119,9 @@ struct Ears: View {
                 ForEach(hud.chips, id: \.pickup) { chip in
                     ZStack {
                         Image(decorative: Art.pickup(chip.pickup), scale: Art.scale).resizable().frame(width: 21, height: 21)
-                        if chip.pickup != .ember {
+                        if let ring = chip.ring {
                             Circle().trim(from: 0, to: chip.fraction)
-                                .stroke(chip.pickup.isGood ? Ink.goodRing : Ink.badRing, lineWidth: 1.5)
+                                .stroke(ring == .good ? Ink.goodRing : Ink.badRing, lineWidth: 1.5)
                                 .rotationEffect(.degrees(-90)).frame(width: 17, height: 17)
                         }
                     }
