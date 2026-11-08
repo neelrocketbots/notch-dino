@@ -124,6 +124,7 @@ Requires macOS 26 or later and Swift 6.2. Built on [NotchKit](https://github.com
     swift run NotchDino      # play solo
     swift test               # game rules, race logic and app logic
     scripts/build-app.sh     # Notch Dino.app in .build/app (ad-hoc signed); needed for racing
+    scripts/e2e-race.sh      # two players race over real Bonjour on this Mac
 
 ## License
 
