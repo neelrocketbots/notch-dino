@@ -32,12 +32,18 @@ gap, and each of the two openings holds something. Pick your opening.
 | Ember | Melts the next piece of obsidian you hit instead of ending the run. You can hold one at a time. It doesn't protect you from the ceiling or the ground. |
 | Golden egg | +5 points. |
 | Updraft | Lighter gravity for 5 s. |
+| Feather | Bounces you off the ceiling or the ground once instead of ending the run. You can hold one at a time. |
+| Tiny | You shrink to 70% for 5 s, so gaps are easier. |
 
 | Power-down | Effect |
 | --- | --- |
 | Ash cloud | Smoke hides the field ahead for 4 s. |
 | Stone scale | Heavier gravity for 5 s. |
 | Hiccups | Random hops for 4 s. |
+| Rush | The world speeds up by 30% for 4 s. |
+| Bloat | You puff up to 130% for 5 s. |
+
+Tiny and Bloat cancel each other out, and so do Updraft and Stone scale.
 
 You can drag the island off the notch to float it anywhere.
 
