@@ -2,11 +2,8 @@ import CoreGraphics
 import Foundation
 
 enum Palette {
-    static let pip: UInt32 = 0xFF5A3C, pipLight: UInt32 = 0xFFB08A, pipShade: UInt32 = 0xB8321E
-    static let wingFar: UInt32 = 0x7E2014, spike: UInt32 = 0xE0442A, belly: UInt32 = 0xFFE2C8, eye: UInt32 = 0x1A0605
-    static let hill: UInt32 = 0x2E1416, hillFar: UInt32 = 0x221012, cycad: UInt32 = 0x0E0506
-    static let obsidianLit0: UInt32 = 0x33262A, obsidianLit1: UInt32 = 0x160F11
-    static let obsidianDark0: UInt32 = 0x080506, obsidianDark1: UInt32 = 0x120A0C, obsidianDark2: UInt32 = 0x2A1214
+    // Hero and map colours live in Looks.swift.
+    static let eye: UInt32 = 0x1A0605
     static let text: UInt32 = 0xFFF4F0
 }
 

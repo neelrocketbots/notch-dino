@@ -9,7 +9,7 @@ import Testing
     BestScoreStore(defaults: d).save(best)
     let display = NotchDisplay(id: 1, x: 0, y: 0, width: 1512, height: 982, notch: Notch(width: 185, height: 32),
                                isMain: true, isBuiltIn: true, menuBarHeight: 32)
-    return IslandModel(display: display, best: BestScoreStore(defaults: d), layout: LayoutStore(defaults: d), seed: 1)
+    return IslandModel(display: display, best: BestScoreStore(defaults: d), layout: LayoutStore(defaults: d), looks: LookStore(defaults: d), seed: 1)
 }
 
 @MainActor @Test func opensFoldsAndPauses() {

@@ -9,10 +9,10 @@ extension Art {
     static let pipSize = CGSize(width: 52, height: 44)
     static let pipOrigin = CGPoint(27, 25)
 
-    static func pip(_ pose: PipPose) -> CGImage {
+    static func pip(_ pose: PipPose, hero: Hero = .pip) -> CGImage {
         image(pipSize) { ctx in
             ctx.translateBy(x: pipOrigin.x, y: pipOrigin.y)
-            drawPip(ctx, pose)
+            drawPip(ctx, pose, hero: hero)
         }
     }
 
@@ -45,31 +45,29 @@ extension Art {
         return p
     }
 
-    static func drawPip(_ ctx: CGContext, _ pose: PipPose) {
-        let up = pose == .wingUp
+    static func drawPip(_ ctx: CGContext, _ pose: PipPose, hero: Hero = .pip) {
+        let up = pose == .wingUp, p = hero.palette
         // far wing, behind the body
         ctx.saveGState(); ctx.translateBy(x: 4, y: 1); ctx.scaleBy(x: 0.7, y: 0.75); ctx.setAlpha(0.75)
-        fill(ctx, wing(up: up), rgb(Palette.wingFar)); ctx.restoreGState()
+        fill(ctx, wing(up: up), rgb(p.wingFar)); ctx.restoreGState()
         // tail and spade
         let tail = CGMutablePath(); tail.move(to: CGPoint(-8, 6)); tail.addQuadCurve(to: CGPoint(-21, 7), control: CGPoint(-15, 11))
-        stroke(ctx, tail, rgb(Palette.pip), width: 3.4)
-        fill(ctx, polygon([CGPoint(-20, 7), CGPoint(-24, 3.5), CGPoint(-26, 8), CGPoint(-22, 10.5)]), rgb(Palette.spike))
+        stroke(ctx, tail, rgb(p.body), width: 3.4)
+        if hero == .nova {
+            // a four-point star for a tail tip
+            fill(ctx, polygon([CGPoint(-23, 2.5), CGPoint(-22, 6), CGPoint(-18.5, 7), CGPoint(-22, 8),
+                               CGPoint(-23, 11.5), CGPoint(-24, 8), CGPoint(-27.5, 7), CGPoint(-24, 6)]), rgb(p.spike))
+        } else {
+            fill(ctx, polygon([CGPoint(-20, 7), CGPoint(-24, 3.5), CGPoint(-26, 8), CGPoint(-22, 10.5)]), rgb(p.spike))
+        }
         // back spikes
         for (x, y, a) in [(-6.0, -4.0, -0.6), (-1.0, -5.5, -0.3)] as [(CGFloat, CGFloat, CGFloat)] {
             at(ctx, x, y, rotate: a) {
                 let s = CGMutablePath(); s.move(to: CGPoint(-2, 1.5)); s.addQuadCurve(to: CGPoint(2, 1.5), control: CGPoint(0, -4)); s.closeSubpath()
-                fill(ctx, s, rgb(Palette.spike))
+                fill(ctx, s, rgb(p.spike))
             }
         }
-        // horns
-        for (x, y, a) in [(5.5, -12.5, -0.7), (10.0, -13.5, -0.35)] as [(CGFloat, CGFloat, CGFloat)] {
-            at(ctx, x, y, rotate: a) {
-                let h = CGMutablePath(); h.move(to: CGPoint(-1.6, 1.5))
-                h.addQuadCurve(to: CGPoint(-3.5, -6), control: CGPoint(-1, -4.5))
-                h.addQuadCurve(to: CGPoint(1.8, 1.5), control: CGPoint(1, -3.5)); h.closeSubpath()
-                fill(ctx, h, rgb(Palette.belly))
-            }
-        }
+        drawHeadgear(ctx, hero, p)
         // legs, body, head, snout with one top-lit gradient
         let body = CGMutablePath()
         body.addPath(CGPath(roundedRect: CGRect(x: -5, y: 10, width: 3.6, height: 4.4), cornerWidth: 1.6, cornerHeight: 1.6, transform: nil))
@@ -77,17 +75,22 @@ extension Art {
         body.addPath(ellipse(CGPoint(-1, 4), 10.5, 8.6))
         body.addPath(circle(CGPoint(8.5, -5.5), 7.8))
         body.addPath(ellipse(CGPoint(15, -2.5), 4.8, 3.6, 0.1))
-        linear(ctx, clip: body, [(0, rgb(Palette.pipLight)), (0.45, rgb(Palette.pip)), (1, rgb(Palette.pipShade))],
+        linear(ctx, clip: body, [(0, rgb(p.light)), (0.45, rgb(p.body)), (1, rgb(p.shade))],
                from: CGPoint(-6, -14), to: CGPoint(6, 14))
         // belly and plates
-        fill(ctx, ellipse(CGPoint(3, 7), 6, 4.4, -0.2), rgb(Palette.belly, 0.9))
+        fill(ctx, ellipse(CGPoint(3, 7), 6, 4.4, -0.2), rgb(p.belly, 0.9))
         for y in [5.0, 7.5, 10.0] as [CGFloat] {
             let l = CGMutablePath(); l.move(to: CGPoint(-1.5, y)); l.addQuadCurve(to: CGPoint(7.5, y - 0.8), control: CGPoint(3, y + 1.2))
-            stroke(ctx, l, rgb(Palette.pipShade, 0.45), width: 0.7)
+            stroke(ctx, l, rgb(p.shade, 0.45), width: 0.7)
         }
         // near wing
-        fill(ctx, wing(up: up), rgb(Palette.pipShade))
-        stroke(ctx, wingRibs(up: up), rgb(0x64140A, 0.6), width: 0.8)
+        fill(ctx, wing(up: up), rgb(p.shade))
+        stroke(ctx, wingRibs(up: up), rgb(p.rib, 0.6), width: 0.8)
+        if hero == .nova {
+            for (x, y) in (up ? [(-9.0, -13.0), (-14.0, -9.0), (-12.0, -4.0)] : [(-10.0, 9.0), (-15.0, 5.0), (-12.0, 1.0)]) as [(CGFloat, CGFloat)] {
+                fill(ctx, circle(CGPoint(x, y), 0.8), white(0.85))
+            }
+        }
         // face
         if pose == .crash {
             let x = CGMutablePath()
@@ -98,11 +101,38 @@ extension Art {
             fill(ctx, circle(CGPoint(11, -6.5), 2.3), rgb(Palette.eye))
             fill(ctx, circle(CGPoint(11.8, -7.4), 0.8), white(1))
         }
-        fill(ctx, circle(CGPoint(18, -4), 0.7), rgb(Palette.pipShade))
+        fill(ctx, circle(CGPoint(18, -4), 0.7), rgb(p.shade))
         let smile = CGMutablePath(); smile.move(to: CGPoint(12.5, -0.6))
         smile.addQuadCurve(to: CGPoint(18.5, -0.8), control: CGPoint(15.5, pose == .crash ? -1.6 : 0.6))
-        stroke(ctx, smile, rgb(Palette.pipShade), width: 0.9)
+        stroke(ctx, smile, rgb(p.shade), width: 0.9)
         stroke(ctx, arc(CGPoint(8.5, -5.5), 5.6, from: .pi * 1.1, to: .pi * 1.5), white(0.5), width: 1.3)
+    }
+
+    /// Pip's cream horns, Moss's leaf crest, Nova's gold swept horns.
+    static func drawHeadgear(_ ctx: CGContext, _ hero: Hero, _ p: HeroPalette) {
+        switch hero {
+        case .pip, .nova:
+            let sweep: CGFloat = hero == .nova ? -0.35 : 0
+            for (x, y, a) in [(5.5, -12.5, -0.7), (10.0, -13.5, -0.35)] as [(CGFloat, CGFloat, CGFloat)] {
+                at(ctx, x, y, rotate: a + sweep) {
+                    let h = CGMutablePath(); h.move(to: CGPoint(-1.6, 1.5))
+                    h.addQuadCurve(to: CGPoint(-3.5, hero == .nova ? -7.5 : -6), control: CGPoint(-1, -4.5))
+                    h.addQuadCurve(to: CGPoint(1.8, 1.5), control: CGPoint(1, -3.5)); h.closeSubpath()
+                    fill(ctx, h, rgb(p.horn))
+                }
+            }
+        case .moss:
+            for (x, y, a, len) in [(3.5, -11.5, -0.9, 7.0), (7.5, -13.5, -0.45, 8.5), (11.5, -13.0, 0.05, 6.5)] as [(CGFloat, CGFloat, CGFloat, CGFloat)] {
+                at(ctx, x, y, rotate: a) {
+                    let leaf = CGMutablePath(); leaf.move(to: CGPoint(0, 1.5))
+                    leaf.addQuadCurve(to: CGPoint(0, -len), control: CGPoint(-3.2, -len * 0.4))
+                    leaf.addQuadCurve(to: CGPoint(0, 1.5), control: CGPoint(3.2, -len * 0.4))
+                    fill(ctx, leaf, rgb(p.horn))
+                    let vein = CGMutablePath(); vein.move(to: CGPoint(0, 1)); vein.addLine(to: CGPoint(0, -len + 1.5))
+                    stroke(ctx, vein, rgb(p.shade, 0.6), width: 0.5)
+                }
+            }
+        }
     }
 
     /// Grey patches for Stone scale, in Pip's frame.
@@ -151,23 +181,46 @@ extension Art {
 
     static let shardSize = CGSize(width: 18, height: 320)
 
-    /// One shard, tip at the top. The ceiling's shards are this texture flipped.
-    static func shard() -> CGImage {
-        image(shardSize) { ctx in
+    /// One shard, tip at the top. The ceiling's shards are this texture flipped. The map picks the material:
+    /// obsidian, ice or thornwood.
+    static func shard(map: MapTheme = .volcano) -> CGImage {
+        let m = map.palette
+        return image(shardSize) { ctx in
             let w: CGFloat = 18, base: CGFloat = 320, split = w * 0.42
             let outline = polygon([CGPoint(0, base), CGPoint(0, 12), CGPoint(split, 0), CGPoint(w * 0.78, 5), CGPoint(w, 15), CGPoint(w, base)])
             let left = polygon([CGPoint(0, base), CGPoint(0, 12), CGPoint(split, 0), CGPoint(split, base)])
             let right = polygon([CGPoint(split, base), CGPoint(split, 0), CGPoint(w * 0.78, 5), CGPoint(w, 15), CGPoint(w, base)])
-            linear(ctx, clip: left, [(0, rgb(Palette.obsidianLit0)), (1, rgb(Palette.obsidianLit1))], from: CGPoint(0, 0), to: CGPoint(split, 0))
-            linear(ctx, clip: right, [(0, rgb(Palette.obsidianDark0)), (0.6, rgb(Palette.obsidianDark1)), (1, rgb(Palette.obsidianDark2))],
+            linear(ctx, clip: left, [(0, rgb(m.lit0)), (1, rgb(m.lit1))], from: CGPoint(0, 0), to: CGPoint(split, 0))
+            linear(ctx, clip: right, [(0, rgb(m.dark0)), (0.6, rgb(m.dark1)), (1, rgb(m.dark2))],
                    from: CGPoint(split, 0), to: CGPoint(w, 0))
             ctx.saveGState(); ctx.addPath(outline); ctx.clip()
             var rng = SeededRandom(seed: 3)
             var t: CGFloat = 22 + CGFloat(rng.unit()) * 10
             while t < base {
                 let r = CGMutablePath(); r.move(to: CGPoint(1, t)); r.addQuadCurve(to: CGPoint(split - 1, t - 1), control: CGPoint(4.5, t - 5))
-                stroke(ctx, r, white(0.08), width: 1)
+                stroke(ctx, r, white(m.grain), width: 1)
                 t += 24 + CGFloat(rng.unit()) * 14
+            }
+            switch map {
+            case .volcano: break
+            case .glacier:
+                // frost glints scattered down the crystal
+                var y: CGFloat = 30
+                while y < base {
+                    fill(ctx, circle(CGPoint(2 + CGFloat(rng.unit()) * (w - 4), y), 0.9), white(0.8))
+                    y += 18 + CGFloat(rng.unit()) * 22
+                }
+            case .grove:
+                // bark grain down the trunk, and knots
+                for x in [w * 0.62, w * 0.86] {
+                    let g = CGMutablePath(); g.move(to: CGPoint(x, 18)); g.addLine(to: CGPoint(x, base))
+                    stroke(ctx, g, rgba(0, 0, 0, 0.35), width: 0.8)
+                }
+                var y: CGFloat = 48
+                while y < base {
+                    fill(ctx, ellipse(CGPoint(w * 0.7, y), 1.8, 3), rgba(0, 0, 0, 0.4))
+                    y += 60 + CGFloat(rng.unit()) * 40
+                }
             }
             let edge = CGMutablePath(); edge.move(to: CGPoint(1.2, base)); edge.addLine(to: CGPoint(1.2, 11))
             stroke(ctx, edge, white(0.32), width: 1)
@@ -190,14 +243,15 @@ extension Art {
 
     static let chunkSize = CGSize(width: 26, height: 29)
 
-    static func chunk() -> CGImage {
-        image(chunkSize) { ctx in
+    static func chunk(map: MapTheme = .volcano) -> CGImage {
+        let m = map.palette
+        return image(chunkSize) { ctx in
             let w: CGFloat = 26, h: CGFloat = 29, cx = w / 2, cy = h / 2
             let pts = [(-0.5, -0.22), (-0.08, -0.5), (0.5, -0.3), (0.5, 0.22), (0.1, 0.5), (-0.5, 0.32)]
                 .map { CGPoint(cx + CGFloat($0.0) * w, cy + CGFloat($0.1) * h) }
             let outline = polygon(pts)
-            fill(ctx, outline, rgb(0x0B0708))
-            linear(ctx, clip: polygon([pts[0], pts[1], pts[4], pts[5]]), [(0, rgb(0x3A2B30)), (1, rgb(0x140D0F))],
+            fill(ctx, outline, rgb(m.chunkFill))
+            linear(ctx, clip: polygon([pts[0], pts[1], pts[4], pts[5]]), [(0, rgb(m.chunkLit0)), (1, rgb(m.chunkLit1))],
                    from: CGPoint(cx - w / 2, cy - h / 2), to: CGPoint(cx, cy + h / 2))
             let facet = CGMutablePath(); facet.move(to: pts[1]); facet.addLine(to: pts[4])
             stroke(ctx, facet, white(0.3), width: 1)

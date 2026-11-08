@@ -21,11 +21,15 @@ import SpriteKit
     /// Art is drawn for 1.2 pt/unit; sprites scale by this when the island is resized.
     private var artScale: CGFloat { unitScale / 1.2 }
 
-    // Textures, made once.
-    private let pipTextures = Dictionary(uniqueKeysWithValues: PipPose.allCases.map { ($0, SKTexture(cgImage: Art.pip($0))) })
-    private let shardTexture = SKTexture(cgImage: Art.shard())
+    /// The hero and map the art is drawn for. Changing either redraws the textures; rules are untouched.
+    private(set) var hero: Hero
+    private(set) var map: MapTheme
+
+    // Textures, remade only when the look changes.
+    private var pipTextures: [PipPose: SKTexture] = [:]
+    private var shardTexture = SKTexture()
     private let hotTexture = SKTexture(cgImage: Art.hotShard())
-    private let chunkTexture = SKTexture(cgImage: Art.chunk())
+    private var chunkTexture = SKTexture()
     private let pickupTextures = Dictionary(uniqueKeysWithValues: Pickup.allCases.map { ($0, SKTexture(cgImage: Art.pickup($0))) })
     private let dotTexture = SKTexture(cgImage: Art.dot())
 
@@ -52,10 +56,13 @@ import SpriteKit
     var firstVolcano: SKSpriteNode? { volcanoes.first }
     var firstCycad: SKSpriteNode? { cycads.first }
 
-    init(islandSize: CGSize, band: CGFloat) {
+    init(islandSize: CGSize, band: CGFloat, hero: Hero = .pip, map: MapTheme = .volcano) {
         self.islandSize = islandSize
         self.band = band
+        self.hero = hero
+        self.map = map
         super.init(size: islandSize)
+        makeLookTextures()
         backgroundColor = .clear
         scaleMode = .resizeFill
         anchorPoint = .zero
@@ -76,6 +83,24 @@ import SpriteKit
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
+    private func makeLookTextures() {
+        pipTextures = Dictionary(uniqueKeysWithValues: PipPose.allCases.map { ($0, SKTexture(cgImage: Art.pip($0, hero: hero))) })
+        shardTexture = SKTexture(cgImage: Art.shard(map: map))
+        chunkTexture = SKTexture(cgImage: Art.chunk(map: map))
+    }
+
+    /// Switches hero and map. Gate nodes are dropped and rebuilt from the next state, so they pick up the new material.
+    func apply(hero: Hero, map: MapTheme) {
+        guard hero != self.hero || map != self.map else { return }
+        self.hero = hero
+        self.map = map
+        makeLookTextures()
+        pipNode.texture = pipTextures[.wingUp]
+        gateNodes.values.forEach { $0.removeFromParent() }
+        gateNodes = [:]
+        layout(islandSize: islandSize, band: band)
+    }
+
     /// World units (y down, field top-left origin) to scene points (y up, island bottom-left origin).
     func scenePoint(x: Double, y: Double) -> CGPoint {
         CGPoint(x: 12 + CGFloat(x) * unitScale, y: islandSize.height - (fieldTop + CGFloat(y) * unitScale))
@@ -87,7 +112,7 @@ import SpriteKit
         self.band = band
         size = islandSize
         let groundY = fieldTop + CGFloat(Params.ground) * unitScale
-        sky.texture = SKTexture(cgImage: Art.sky(size: islandSize, fieldTop: fieldTop, fieldHeight: fieldHeight, groundY: groundY))
+        sky.texture = SKTexture(cgImage: Art.sky(size: islandSize, fieldTop: fieldTop, fieldHeight: fieldHeight, groundY: groundY, map: map))
         sky.size = islandSize
         func tiles(_ old: [SKSpriteNode], _ img: CGImage, _ tile: CGSize, z: CGFloat) -> [SKSpriteNode] {
             old.forEach { $0.removeFromParent() }
@@ -99,14 +124,14 @@ import SpriteKit
                 n.anchorPoint = .zero; n.zPosition = z; addChild(n); return n
             }
         }
-        stars = tiles(stars, Art.stars(), Art.starsTileSize, z: -9)
-        volcanoes = tiles(volcanoes, Art.volcanoes(), Art.volcanoTileSize, z: -8)
-        cycads = tiles(cycads, Art.cycads(), Art.cycadTileSize, z: -7)
+        stars = tiles(stars, Art.stars(map: map), Art.starsTileSize, z: -9)
+        volcanoes = tiles(volcanoes, Art.volcanoes(map: map), Art.volcanoTileSize, z: -8)
+        cycads = tiles(cycads, Art.cycads(map: map), Art.cycadTileSize, z: -7)
         let groundHeight = islandSize.height - groundY + 4
-        ground.texture = SKTexture(cgImage: Art.ground(width: islandSize.width + 22, height: groundHeight))
+        ground.texture = SKTexture(cgImage: Art.ground(width: islandSize.width + 22, height: groundHeight, map: map))
         ground.size = CGSize(width: islandSize.width + 22, height: groundHeight)
         let ashSize = CGSize(width: islandSize.width, height: islandSize.height)
-        ash.texture = SKTexture(cgImage: Art.smoke(size: ashSize)); ash.size = ashSize
+        ash.texture = SKTexture(cgImage: Art.smoke(size: ashSize, map: map)); ash.size = ashSize
         pipNode.setScale(artScale)
     }
 
@@ -227,7 +252,7 @@ import SpriteKit
         e.yAcceleration = -500
         e.particleScale = 0.5; e.particleScaleRange = 0.3
         e.particleAlphaSpeed = -0.7
-        e.particleColor = NSColor(srgbRed: 1, green: 0.353, blue: 0.235, alpha: 1)
+        e.particleColor = NSColor(cgColor: Art.rgb(hero.palette.body)) ?? .systemRed
         e.particleColorBlendFactor = 1
         e.position = p; e.zPosition = 7
         addChild(e)

@@ -11,6 +11,8 @@ import RunnerCore
     public private(set) var isMoving = false
     public private(set) var phase: Phase = .idle
     public private(set) var hud: HUD = .empty
+    public private(set) var hero: Hero
+    public private(set) var map: MapTheme
 
     // Not observed: change every frame.
     @ObservationIgnored public var game: GameState
@@ -20,6 +22,7 @@ import RunnerCore
 
     @ObservationIgnored private let bestStore: BestScoreStore
     @ObservationIgnored private let layoutStore: LayoutStore
+    @ObservationIgnored private let lookStore: LookStore
     @ObservationIgnored private var prefs: NotchLayoutPrefs
     @ObservationIgnored private var base: NotchGeometry
     @ObservationIgnored private var seed: UInt64
@@ -28,10 +31,13 @@ import RunnerCore
     @ObservationIgnored private var moveStartedDocked = false
     @ObservationIgnored var isResizing: Bool { resizeStart != nil }
 
-    public init(display: NotchDisplay?, best: BestScoreStore, layout: LayoutStore, seed: UInt64) {
+    public init(display: NotchDisplay?, best: BestScoreStore, layout: LayoutStore, looks: LookStore = LookStore(), seed: UInt64) {
         self.display = display
         self.bestStore = best
         self.layoutStore = layout
+        self.lookStore = looks
+        self.hero = looks.hero()
+        self.map = looks.map()
         self.prefs = layout.load()
         self.seed = seed
         let g = Self.makeGeometry(display)
@@ -39,7 +45,7 @@ import RunnerCore
         self.geometry = g
         let field = Self.fieldSize(g)
         self.game = Runner.newGame(world: World.forField(width: field.width, height: field.height), seed: seed, best: best.load())
-        self.scene = RunnerScene(islandSize: g.expandedSize, band: g.notch.height)
+        self.scene = RunnerScene(islandSize: g.expandedSize, band: g.notch.height, hero: looks.hero(), map: looks.map())
         scene.isPaused = true
         scene.reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         scene.driver = self
@@ -73,6 +79,21 @@ import RunnerCore
 
     /// What takes the mouse: the open island, or only the notch while folded.
     public var hitRect: CGRect { isOpen ? islandFrame : geometry.hoverTarget }
+
+    // MARK: Look
+
+    /// Picks who flies and where. Art only: the run in progress carries on.
+    public func choose(hero: Hero) {
+        self.hero = hero
+        lookStore.save(hero: hero)
+        scene.apply(hero: hero, map: map)
+    }
+
+    public func choose(map: MapTheme) {
+        self.map = map
+        lookStore.save(map: map)
+        scene.apply(hero: hero, map: map)
+    }
 
     // MARK: Commands
 

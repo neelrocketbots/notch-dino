@@ -63,7 +63,10 @@ final class IslandContainerView: NSView {
 
     private func installStatusItem() {
         statusItem = StatusItem(isOpen: { [weak self] in self?.model?.isOpen ?? false },
-                                onToggle: { [weak self] in self?.model?.handle(.hotKey) })
+                                onToggle: { [weak self] in self?.model?.handle(.hotKey) },
+                                look: { [weak self] in (self?.model?.hero ?? .pip, self?.model?.map ?? .volcano) },
+                                onHero: { [weak self] in self?.model?.choose(hero: $0) },
+                                onMap: { [weak self] in self?.model?.choose(map: $0) })
     }
 
     private func installHotKey() {
