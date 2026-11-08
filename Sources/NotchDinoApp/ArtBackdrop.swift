@@ -4,7 +4,7 @@ import RunnerCore
 extension Art {
     static func rgba(_ c: MapPalette.RGB, _ a: CGFloat) -> CGColor { rgba(c.0, c.1, c.2, a) }
 
-    /// The sky over the whole island (the band's fade sits on top in SwiftUI), translucent near the horizon so the
+    /// The sky over the whole island (the band's fade, `bandFade`, sits on top in SwiftUI), translucent near the horizon so the
     /// island's frost shows, with a haze above the ground in the map's light (ember, ice or firefly).
     static func sky(size: CGSize, fieldTop: CGFloat, fieldHeight: CGFloat, groundY: CGFloat, map: MapTheme = .volcano) -> CGImage {
         let m = map.palette
@@ -17,6 +17,83 @@ extension Art {
             linear(ctx, clip: haze, [(0, rgba(m.haze, 0)), (1, rgba(m.haze, 0.12))],
                    from: CGPoint(0, groundY - 60), to: CGPoint(0, groundY))
             if !map.isClassic { drawSkyExtras(ctx, size: size, groundY: groundY, map: map) }
+        }
+    }
+
+    /// One stop of the band's fade: where (0 the top of the island, 1 the fade's end), the colour (0...1 sRGB) and
+    /// its opacity over the scene.
+    struct FadeStop: Equatable {
+        let location: CGFloat
+        let r, g, b, alpha: CGFloat
+    }
+
+    /// The sky's top half seen over the black island: the gradient `sky` draws, premultiplied, at `y` points down.
+    static func skySeen(atY y: CGFloat, height: CGFloat, fieldTop: CGFloat, fieldHeight: CGFloat, map: MapTheme) -> MapPalette.RGB {
+        let m = map.palette, mid = (fieldTop + fieldHeight * 0.35) / height
+        let t = min(1, max(0, y / height / mid)), a = 0.8 * t
+        return ((m.skyTop.0 + (m.skyMid.0 - m.skyTop.0) * t) * a, (m.skyTop.1 + (m.skyMid.1 - m.skyTop.1) * t) * a,
+                (m.skyTop.2 + (m.skyMid.2 - m.skyTop.2) * t) * a)
+    }
+
+    /// The fade from the black band into the map's sky, as a top overlay `band + palette.fade` points tall. It stays
+    /// pure black over the band, then eases (quick off the band, long and soft into the sky, flat at both ends so no
+    /// edge shows) from black through a deep, saturated shade of the sky's own hue to the sky, never through grey.
+    static func bandFade(map: MapTheme, band: CGFloat, height: CGFloat, fieldTop: CGFloat, fieldHeight: CGFloat) -> [FadeStop] {
+        let m = map.palette, total = band + m.fade
+        let target = skySeen(atY: total, height: height, fieldTop: fieldTop, fieldHeight: fieldHeight, map: map)
+        let tv = max(target.0, target.1, target.2) / 255
+        let top = hsv(m.skyTop), seen = hsv(target)
+        let deep = rgb(hue: top.h, saturation: min(1, max(top.s, seen.s) * 1.1), value: tv * 0.55)
+        let knee: CGFloat = 0.45
+        var stops = [FadeStop(location: 0, r: 0, g: 0, b: 0, alpha: 1), FadeStop(location: band / total, r: 0, g: 0, b: 0, alpha: 1)]
+        let n = 14
+        for i in 1...n {
+            let t = CGFloat(i) / CGFloat(n)
+            let e = fadeEase(t)
+            let c: (CGFloat, CGFloat, CGFloat)
+            if e < knee {
+                let k = e / knee
+                c = (deep.0 * k, deep.1 * k, deep.2 * k)
+            } else {
+                let k = (e - knee) / (1 - knee)
+                c = (deep.0 + (target.0 / 255 - deep.0) * k, deep.1 + (target.1 / 255 - deep.1) * k, deep.2 + (target.2 / 255 - deep.2) * k)
+            }
+            stops.append(FadeStop(location: (band + m.fade * t) / total, r: c.0, g: c.1, b: c.2, alpha: 1 - e * e))
+        }
+        return stops
+    }
+
+    /// A smoothstep skewed towards the band: flat where it leaves the band and where it meets the sky (no edge at
+    /// either end), steepest in the first third, then a long soft tail.
+    static func fadeEase(_ t: CGFloat) -> CGFloat {
+        let w = 1 - pow(1 - min(1, max(0, t)), 1.6)
+        return w * w * (3 - 2 * w)
+    }
+
+    /// Hue (0...1), saturation and value of an sRGB colour in 0...255.
+    static func hsv(_ c: MapPalette.RGB) -> (h: CGFloat, s: CGFloat, v: CGFloat) {
+        let r = c.0 / 255, g = c.1 / 255, b = c.2 / 255
+        let mx = max(r, g, b), mn = min(r, g, b), d = mx - mn
+        guard mx > 0 else { return (0, 0, 0) }
+        var h: CGFloat = 0
+        if d > 0 {
+            if mx == r { h = (g - b) / d } else if mx == g { h = 2 + (b - r) / d } else { h = 4 + (r - g) / d }
+            h = (h / 6).truncatingRemainder(dividingBy: 1); if h < 0 { h += 1 }
+        }
+        return (h, d / mx, mx)
+    }
+
+    /// An sRGB colour (0...1) from hue (0...1), saturation and value.
+    static func rgb(hue h: CGFloat, saturation s: CGFloat, value v: CGFloat) -> (CGFloat, CGFloat, CGFloat) {
+        let i = Int(floor(h * 6)) % 6, f = h * 6 - floor(h * 6)
+        let p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s)
+        switch i {
+        case 0: return (v, t, p)
+        case 1: return (q, v, p)
+        case 2: return (p, v, t)
+        case 3: return (p, q, v)
+        case 4: return (t, p, v)
+        default: return (v, p, q)
         }
     }
 

@@ -132,3 +132,24 @@ private func pixels(_ img: CGImage) -> Data { img.dataProvider!.data! as Data }
         #expect(scene.hero == h && scene.map == m)
     }
 }
+
+/// The band's fade keeps the band pure black, ends fully clear, and never passes through grey: halfway down the fade
+/// it is at least 60 % as saturated as the sky's top colour.
+@Test func theBandFadesIntoEachSkyThroughItsOwnHue() {
+    let band: CGFloat = 32, height: CGFloat = 282
+    for map in MapTheme.allCases {
+        let m = map.palette
+        #expect((40...60).contains(m.fade), "\(map)")
+        let stops = Art.bandFade(map: map, band: band, height: height, fieldTop: band + 2, fieldHeight: height - band - 10)
+        let total = band + m.fade
+        for s in stops where s.location <= band / total { #expect(s.r == 0 && s.g == 0 && s.b == 0 && s.alpha == 1, "\(map): band") }
+        #expect(stops.last!.location == 1 && stops.last!.alpha == 0, "\(map): clear at the end")
+        #expect(zip(stops, stops.dropFirst()).allSatisfy { $0.alpha >= $1.alpha && $0.location < $1.location }, "\(map)")
+        let at = (band + m.fade / 2) / total
+        let i = stops.firstIndex { $0.location >= at }!, a = stops[i - 1], b = stops[i]
+        let k = (at - a.location) / (b.location - a.location)
+        let mid = Art.hsv(((a.r + (b.r - a.r) * k) * 255, (a.g + (b.g - a.g) * k) * 255, (a.b + (b.b - a.b) * k) * 255))
+        #expect(mid.v > 0.02, "\(map): lit by halfway")
+        #expect(mid.s >= Art.hsv(m.skyTop).s * 0.6, "\(map): midpoint saturation \(mid.s)")
+    }
+}

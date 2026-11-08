@@ -23,7 +23,7 @@ struct GameView: View {
                            height: g.expandedSize.height - band - NotchGeometry.bodyTop - NotchGeometry.bodyBottom)
         ZStack(alignment: .topLeading) {
             SceneHost(scene: model.scene, paused: !model.isOpen)
-            BandFade(band: band).allowsHitTesting(false)
+            BandFade(band: band, height: g.expandedSize.height, map: model.map).allowsHitTesting(false)
             Ears(hud: model.hud, phase: model.phase, notchWidth: model.isFloating ? 0 : g.notch.width, band: band)
                 .frame(width: g.expandedSize.width, height: band)
                 .allowsHitTesting(false)
@@ -75,15 +75,18 @@ struct GameView: View {
     }
 }
 
-/// The black band stays black and the night rises into it over 46 pt: no edge between band and field.
+/// The black band stays black, then fades into the map's sky through the sky's own hue (`Art.bandFade`).
 struct BandFade: View {
     let band: CGFloat
+    let height: CGFloat
+    let map: MapTheme
     var body: some View {
-        let total = band + 46
-        LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: band / total),
-                               .init(color: .black.opacity(0.35), location: 0.86), .init(color: .clear, location: 1)],
-                       startPoint: .top, endPoint: .bottom)
-            .frame(height: total)
+        let fieldTop = band + NotchGeometry.bodyTop
+        let fieldHeight = height - fieldTop - NotchGeometry.bodyBottom
+        LinearGradient(stops: Art.bandFade(map: map, band: band, height: height, fieldTop: fieldTop, fieldHeight: fieldHeight).map {
+            Gradient.Stop(color: Color(.sRGB, red: $0.r, green: $0.g, blue: $0.b, opacity: $0.alpha), location: $0.location)
+        }, startPoint: .top, endPoint: .bottom)
+            .frame(height: band + map.palette.fade)
     }
 }
 
