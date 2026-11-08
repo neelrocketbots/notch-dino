@@ -97,7 +97,7 @@ public enum Runner {
 
         if !resolveGates(&s, events: &events) { return }
 
-        if s.pipY - s.pipRadius < 0 || s.pipY + s.pipRadius > Params.ground { crash(&s, events: &events) }
+        resolveEdges(&s, events: &events)
     }
 
     /// Passing, pickups and obsidian contact. Returns false when the run crashed.
@@ -125,6 +125,26 @@ public enum Runner {
             }
         }
         return true
+    }
+
+    /// Ceiling and ground contact. A feather charge turns one contact into a bounce: Pip's edge is set back
+    /// `featherInset` units inside the field, moving away from the edge at `flapVelocity × featherBounce`. Without a
+    /// charge the run crashes. Runs after the gates, so an ember and a feather can each be spent in the same step.
+    static func resolveEdges(_ s: inout GameState, events: inout [GameEvent]) {
+        let r = s.pipRadius
+        let ceiling = s.pipY - r < 0, ground = s.pipY + r > Params.ground
+        guard ceiling || ground else { return }
+        guard s.effects.feather else { crash(&s, events: &events); return }
+        s.effects.feather = false
+        let away = -Params.flapVelocity * Params.featherBounce   // positive: downward, away from the ceiling
+        if ceiling {
+            s.pipY = r + Params.featherInset
+            s.pipVY = away
+        } else {
+            s.pipY = Params.ground - r - Params.featherInset
+            s.pipVY = -away
+        }
+        events.append(.bounced)
     }
 
     /// When Pip has just grown (Bloat taken, Tiny over) from radius `old` and the bigger radius already overlaps the
