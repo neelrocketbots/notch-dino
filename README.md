@@ -46,26 +46,39 @@ You can drag the island off the notch to float it anywhere, and resize it while 
 Pick who flies and where from the **Hero** and **Map** menus under the flame icon in the menu bar. Your choice is
 remembered. It's art only: the rules are the same everywhere.
 
-<p align="center">
-  <img src="assets/pip-volcano.png" width="270" alt="Pip, the red dragon, over Ember Peaks: a red night sky with volcanoes and cycad silhouettes">
-  &nbsp;
-  <img src="assets/moss-glacier.png" width="270" alt="Moss, the green dragon, over Glacier: a blue night sky with snow-capped peaks and pines">
-  &nbsp;
-  <img src="assets/nova-grove.png" width="270" alt="Nova, the violet dragon, over Night Grove: dark green hills with mushrooms and fireflies">
-</p>
-<p align="center"><sub>Pip in Ember Peaks · Moss in Glacier · Nova in Night Grove</sub></p>
+| | |
+| :-: | :-: |
+| <img src="assets/pip-volcano.png" width="380" alt="Pip, the red dragon, over Ember Peaks: volcanoes and cycads under a red night sky"><br><sub>Pip in Ember Peaks</sub> | <img src="assets/moss-glacier.png" width="380" alt="Moss, the green dragon, over Glacier: snow-capped peaks and pines under a blue night sky"><br><sub>Moss in Glacier</sub> |
+| <img src="assets/nova-grove.png" width="380" alt="Nova, the violet dragon, over Night Grove: dark hills, mushrooms and fireflies"><br><sub>Nova in Night Grove</sub> | <img src="assets/coral-dunes.png" width="380" alt="Coral, the pink dragon, over Dune Sea: dunes and cacti under a sunset sky"><br><sub>Coral in Dune Sea</sub> |
+| <img src="assets/frost-skyisles.png" width="380" alt="Frost, the pale blue dragon, over Sky Isles: cloud banks and floating islands"><br><sub>Frost in Sky Isles</sub> | <img src="assets/sable-bamboo.png" width="380" alt="Sable, the charcoal dragon, over Bamboo Vale: misty hills, bamboo and lanterns"><br><sub>Sable in Bamboo Vale</sub> |
+| <img src="assets/saffron-crystal.png" width="380" alt="Saffron, the golden dragon, in Crystal Caves: stalactites and glowing amethyst"><br><sub>Saffron in Crystal Caves</sub> | <img src="assets/tide-storm.png" width="380" alt="Tide, the teal dragon, over Storm Coast: rain, sea cliffs and a lighthouse beam"><br><sub>Tide in Storm Coast</sub> |
+| <img src="assets/rust-autumn.png" width="380" alt="Rust, the copper dragon, over Autumn Woods: orange canopy and birches at dusk"><br><sub>Rust in Autumn Woods</sub> | <img src="assets/blossom-ruins.png" width="380" alt="Blossom, the lilac dragon, over Lost Ruins: jungle temple silhouettes at night"><br><sub>Blossom in Lost Ruins</sub> |
 
 | Hero | Look |
 | --- | --- |
 | Pip | The red baby dragon. |
 | Moss | Green, with a leaf crest. |
 | Nova | Violet, with gold horns, starry wings and a star tail. |
+| Coral | Pink, with frilled fin ears. |
+| Frost | Pale blue-white, with crystal horns. |
+| Sable | Charcoal, with glowing ember freckles. |
+| Saffron | Golden yellow, with a round belly and stubby wings. |
+| Tide | Teal, with webbed, fin-edged wings. |
+| Rust | Copper, with plated back scales. |
+| Blossom | Lilac, with petal-shaped wings. |
 
 | Map | Obstacles |
 | --- | --- |
 | Ember Peaks | Obsidian among volcanoes and cycads. |
 | Glacier | Ice crystals among snow-capped peaks and pines. |
 | Night Grove | Thornwood trunks and mossy boulders among hills, mushrooms and fireflies. |
+| Dune Sea | Sandstone pillars among sunset dunes and cacti. |
+| Sky Isles | Rock spires with dangling roots, above the clouds. |
+| Bamboo Vale | Bamboo bundles among misty hills and lanterns. |
+| Crystal Caves | Amethyst clusters under a stalactite ceiling. |
+| Storm Coast | Basalt columns in the rain, by a lighthouse. |
+| Autumn Woods | Birch trunks under an orange canopy. |
+| Lost Ruins | Vine-wrapped stone columns among jungle temples. |
 
 ## Trust
 
