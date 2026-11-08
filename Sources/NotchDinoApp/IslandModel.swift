@@ -41,6 +41,8 @@ import RunnerCore
     @ObservationIgnored public var onAskName: (@MainActor () -> Void)?
     /// Opens System Settings at Privacy & Security › Local Network. Set by the app delegate.
     @ObservationIgnored public var onOpenPrivacy: (@MainActor () -> Void)?
+    /// The displays a drop can land on; tests replace it.
+    @ObservationIgnored var availableDisplays: @MainActor () -> [NotchDisplay] = { NotchScreens.displays() }
 
     @ObservationIgnored let bestStore: BestScoreStore
     @ObservationIgnored private let layoutStore: LayoutStore
@@ -216,11 +218,22 @@ import RunnerCore
         handle(.autoPause)
         clearDrag()
         guard let d = DisplayPicker.pick(displays) else { panel?.orderOut(nil); return }
+        isFloating = false
+        adopt(d)
+        panel?.orderFrontRegardless()
+    }
+
+    /// Lays the island out for `d`: its own notch (or NotchKit's virtual one), the default height, the world refitted.
+    private func adopt(_ d: NotchDisplay) {
         display = d
         base = Self.makeGeometry(d)
-        isFloating = false
         applyBaseGeometry()
-        panel?.orderFrontRegardless()
+    }
+
+    /// The display under the island's centre (top-left points), if any.
+    private func display(under topLeft: CGPoint) -> NotchDisplay? {
+        let centre = CGPoint(x: topLeft.x + geometry.expandedSize.width / 2, y: topLeft.y + geometry.expandedSize.height / 2)
+        return availableDisplays().first { CGRect(x: $0.x, y: $0.y, width: $0.width, height: $0.height).contains(centre) }
     }
 
     // MARK: Panel placement (AppKit: bottom-left origin)
@@ -275,7 +288,7 @@ import RunnerCore
     }
 
     /// The floating island's top-left in global top-left points.
-    private var floatingTopLeft: CGPoint {
+    var floatingTopLeft: CGPoint {
         guard let panel else { return .zero }
         return CGPoint(x: panel.frame.minX + NotchFloat.margin, y: mainHeight - (panel.frame.maxY - NotchFloat.margin))
     }
@@ -303,9 +316,17 @@ import RunnerCore
             guard let s = moveStart else { return }
             panel.setFrameOrigin(CGPoint(x: s.frame.minX + dx, y: s.frame.minY + dy))
         case .ended:
-            defer { moveStart = nil; isMoving = false }
-            guard isMoving, let d = display else { return }
+            guard isMoving, var d = display else { moveStart = nil; isMoving = false; return }
             let tl = floatingTopLeft
+            if let target = display(under: tl), target.id != d.id {
+                // A race stays on its display: the drop snaps back, as a cancel does.
+                if race != nil { move(.cancel); return }
+                // Another display: the island moves there, laid out for it, and a running game pauses.
+                run(.pauseGame)
+                adopt(target)
+                d = target
+            }
+            defer { moveStart = nil; isMoving = false }
             if NotchFloat.touchesDock(proposedTop: tl.y, left: tl.x, right: tl.x + geometry.expandedSize.width,
                                       display: d, notchWidth: geometry.notch.width) {
                 dock(rememberFloating: false)
