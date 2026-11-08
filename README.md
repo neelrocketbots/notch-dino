@@ -98,7 +98,8 @@ remembered. It's art only: the rules are the same everywhere.
 Two Macs on the same network can race the same course at the same time. Press **R** on the idle screen, or choose
 **Race Nearby…** from the flame icon, then host a race or join one from the list. You see the other player as a
 translucent ghost of their hero, on the host's map. The race runs until both dragons have crashed: the higher score
-wins, golden eggs included, and equal scores tie.
+wins, golden eggs included, and equal scores tie. When the other dragon crashes, its ghost tumbles away and you fly on
+alone.
 
 | Key | In a race |
 | --- | --- |
