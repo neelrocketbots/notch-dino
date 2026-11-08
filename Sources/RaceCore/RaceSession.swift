@@ -48,6 +48,11 @@ public enum RaceInput: Equatable, Sendable {
     case startPressed
     case flapped(step: Int)
     case crashed(step: Int, score: Int)
+    /// P while racing.
+    case pausePressed
+    /// The island folded, the Mac slept or locked, the app lost key, or a stalled frame paused the run.
+    case folded
+    case resumePressed
     case rematchPressed
     case leave(ByeReason)
 }
@@ -72,6 +77,8 @@ public struct RaceSession: Sendable {
     public static let countdownMs = 2_100
     /// How far past this Mac's step a peer's flap or pause may be.
     public static let flapAhead = 120, pauseAhead = 24
+    public static let lobbyPings = 5, lobbyPingGap = 0.1, heartbeat = 1.0, timeout = 5.0
+    public static let pauseLimit = 60.0, pausesPerRace = 3
 
     public let role: RaceRole
     public let me: RacePlayer
@@ -85,6 +92,7 @@ public struct RaceSession: Sendable {
     public private(set) var theirCrash: RaceScore?
     public private(set) var rematchMine = false
     public private(set) var rematchTheirs = false
+    public private(set) var pausesLeft = RaceSession.pausesPerRace
     /// The latest round trip, in seconds.
     public private(set) var rtt: Double?
 
@@ -93,6 +101,9 @@ public struct RaceSession: Sendable {
     private var connected = false
     private var lastHeard = 0.0
     private var lastTheirFlap = -1
+    private var lastPing = -Double.infinity
+    private var lobbyPingsLeft = RaceSession.lobbyPings
+    private var pausedSince: Double?
 
     /// `seed` feeds the race seeds a host picks; tests pass a fixed one.
     public init(hostingAs me: RacePlayer, map: String, world: World, seed: UInt64) {
@@ -144,6 +155,18 @@ public struct RaceSession: Sendable {
             guard inRace, myCrash == nil else { return [] }
             myCrash = RaceScore(step: step, score: score)
             return [.send(.crashed(step: step, score: score))] + settle()
+        case .pausePressed:
+            guard stage == .racing, pausesLeft > 0 else { return [] }
+            return pause(atStep: localStep + Params.pauseLeadSteps, now: now)
+        case .folded:
+            guard stage == .racing || stage == .countdown else { return [] }
+            guard pausesLeft > 0 else { return end(.youLeft, bye: .left) }
+            return pause(atStep: localStep, now: now)
+        case .resumePressed:
+            guard stage == .paused(byMe: true) else { return [] }
+            stage = .countdown
+            pausedSince = nil
+            return [.send(.resume(inMs: Self.countdownMs)), .resume(countdownSteps: Params.countdownSteps)]
         case .rematchPressed:
             guard case .result = stage, !rematchMine else { return [] }
             rematchMine = true
@@ -188,9 +211,24 @@ public struct RaceSession: Sendable {
             lastTheirFlap = step
             ghost?.add(flap: step)
             return []
-        case .pause, .resume:
-            // Race pauses arrive in Task 6.
-            return []
+        case .pause(let atStep):
+            guard atStep <= localStep + Self.pauseAhead else { return end(.desync, bye: .desync) }
+            switch stage {
+            case .countdown, .racing:
+                stage = .paused(byMe: false)
+                pausedSince = now
+                return [.freeze(atStep: atStep)]
+            case .paused(byMe: true):
+                // Both pressed P at once: each run keeps the earlier step, and either player may resume.
+                return [.freeze(atStep: atStep)]
+            case .waiting, .ready, .paused(byMe: false), .result, .over:
+                return []
+            }
+        case .resume(let inMs):
+            guard case .paused = stage else { return [] }
+            stage = .countdown
+            pausedSince = nil
+            return [.resume(countdownSteps: countdownSteps(inMs))]
         case .crashed(let step, let score):
             guard inRace, theirCrash == nil, var g = ghost else { return [] }
             g.advance(to: step)
@@ -211,13 +249,37 @@ public struct RaceSession: Sendable {
         localStep = step
         if stage == .countdown, phase == .running || phase == .crashed { stage = .racing }
         if inRace { ghost?.advance(to: step) }
-        return []
+        var out: [RaceCommand] = []
+        if connected {
+            if opponent != nil {
+                // 5 quick pings measure the round trip; then one a second is the heartbeat.
+                let gap = lobbyPingsLeft > 0 ? Self.lobbyPingGap : Self.heartbeat
+                if now - lastPing >= gap - 1e-9 {
+                    lastPing = now
+                    lobbyPingsLeft = max(0, lobbyPingsLeft - 1)
+                    out.append(.send(.ping(t: now)))
+                }
+            }
+            if now - lastHeard >= Self.timeout { return out + end(.opponentLeft, bye: .timeout) }
+        }
+        if case .paused(let byMe) = stage, let since = pausedSince, now - since >= Self.pauseLimit {
+            return out + end(byMe ? .youLeft : .opponentLeft, bye: .pauseLimit)
+        }
+        return out
+    }
+
+    private mutating func pause(atStep: Int, now: Double) -> [RaceCommand] {
+        pausesLeft -= 1
+        stage = .paused(byMe: true)
+        pausedSince = now
+        return [.send(.pause(atStep: atStep)), .freeze(atStep: atStep)]
     }
 
     /// Both crashed: the higher score wins, equal scores tie.
     private mutating func settle() -> [RaceCommand] {
         guard let mine = myCrash, let theirs = theirCrash else { return [] }
         stage = .result(mine.score > theirs.score ? .win : mine.score < theirs.score ? .lose : .tie)
+        pausedSince = nil
         return []
     }
 
@@ -240,6 +302,8 @@ public struct RaceSession: Sendable {
         rematchMine = false
         rematchTheirs = false
         lastTheirFlap = -1
+        pausesLeft = Self.pausesPerRace
+        pausedSince = nil
         localStep = 0
         stage = .countdown
         return [.startGame(seed: seed, countdownSteps: countdownSteps)]
@@ -254,6 +318,7 @@ public struct RaceSession: Sendable {
 
     private mutating func end(_ reason: RaceEnd, bye: ByeReason?) -> [RaceCommand] {
         stage = .over(reason)
+        pausedSince = nil
         return (bye.map { [RaceCommand.send(.bye($0))] } ?? []) + [.close]
     }
 }
