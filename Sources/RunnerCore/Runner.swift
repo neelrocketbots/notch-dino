@@ -52,11 +52,14 @@ public enum Runner {
         return events
     }
 
-    /// The island was resized: same rules, new width. Gates keep their world positions; spawning resumes past the new
-    /// right edge.
+    /// The island was resized: same rules, new width. Pip sits at a fixed fraction of the width, so every gate (and the
+    /// next spawn) moves by as much as Pip does: each gate keeps its distance from Pip, so passed gates stay behind and
+    /// unscored ones stay ahead. Spawning resumes past the new right edge.
     public static func resize(_ s: inout GameState, world: World) {
+        let shift = world.pipX - s.world.pipX
         s.world = world
-        s.nextGateX = max(s.nextGateX, (s.gates.map(\.x).max() ?? 0) + Params.spacing, world.width + Params.spawnAhead)
+        for i in s.gates.indices { s.gates[i].x += shift }
+        s.nextGateX = max(s.nextGateX + shift, (s.gates.map(\.x).max() ?? 0) + Params.spacing, world.width + Params.spawnAhead)
     }
 
     /// One fixed step.
