@@ -46,6 +46,15 @@ You can drag the island off the notch to float it anywhere, and resize it while 
 Pick who flies and where from the **Hero** and **Map** menus under the flame icon in the menu bar. Your choice is
 remembered. It's art only: the rules are the same everywhere.
 
+<p align="center">
+  <img src="assets/pip-volcano.png" width="270" alt="Pip, the red dragon, over Ember Peaks: a red night sky with volcanoes and cycad silhouettes">
+  &nbsp;
+  <img src="assets/moss-glacier.png" width="270" alt="Moss, the green dragon, over Glacier: a blue night sky with snow-capped peaks and pines">
+  &nbsp;
+  <img src="assets/nova-grove.png" width="270" alt="Nova, the violet dragon, over Night Grove: dark green hills with mushrooms and fireflies">
+</p>
+<p align="center"><sub>Pip in Ember Peaks · Moss in Glacier · Nova in Night Grove</sub></p>
+
 | Hero | Look |
 | --- | --- |
 | Pip | The red baby dragon. |
