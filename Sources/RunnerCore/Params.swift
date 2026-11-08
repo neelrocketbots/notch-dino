@@ -2,7 +2,8 @@
 public enum Params {
     /// The version of these rules. The v1 rules are 1; every change to the rules (a number here, an effect, the odds)
     /// bumps it, so two games can check they play by the same rules.
-    public static let rulesVersion = 2
+    /// Both racing Macs must agree on this. 3: the countdown phase and the step counter.
+    public static let rulesVersion = 3
     public static let worldHeight = 200.0
     public static let ground = 188.0                 // top of the ground strip
     public static let gravity = 900.0
@@ -23,6 +24,10 @@ public enum Params {
     public static let pickupReach = 6.0
     public static let fixedStep = 1.0 / 120.0
     public static let maxStepsPerFrame = 8
+    /// 3, 2, 1 at 0.7 s each: 252 fixed steps, 84 per number.
+    public static let countdownSteps = 252, countdownStepsPerNumber = 84
+    /// A race pause lands this many steps (100 ms) ahead, so both Macs freeze on the same step.
+    public static let pauseLeadSteps = 12
     public static let pauseGap = 0.25
     public static let milestoneEvery = 10
     public static let eggPoints = 5

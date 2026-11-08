@@ -73,6 +73,7 @@ func resizedRunResumesWithoutCrashOrFreePoints(width: Double) {
     Runner.resize(&s, world: World(width: width))
     var events: [GameEvent] = []
     Runner.flap(&s, events: &events)
+    for _ in 0..<Params.countdownSteps { Runner.step(&s, dt: Params.fixedStep, events: &events) }
     #expect(s.phase == .running)
     for _ in 0..<10 { Runner.step(&s, dt: Params.fixedStep, events: &events) }
     #expect(s.phase == .running && s.score == 0)

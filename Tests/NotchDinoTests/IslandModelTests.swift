@@ -15,7 +15,7 @@ import Testing
 @MainActor @Test func opensFoldsAndPauses() {
     let m = makeModel()
     m.handle(.hotKey); #expect(m.isOpen && !m.scene.isPaused)
-    m.handle(.flapKey); #expect(m.game.phase == .running && m.phase == .running)
+    m.handle(.flapKey); #expect(m.game.phase == .countdown(remaining: Params.countdownSteps) && m.phase == m.game.phase)
     m.handle(.escape); #expect(!m.isOpen && m.game.phase == .paused && m.scene.isPaused)
 }
 
@@ -28,7 +28,7 @@ import Testing
 
 @MainActor @Test func crashSavesNewBest() {
     let m = makeModel(best: 1)
-    m.handle(.hotKey); m.handle(.flapKey)
+    m.handle(.hotKey); m.handle(.flapKey); m.game.phase = .running
     m.game.score = 5; m.game.pipY = Params.ground; m.game.nextGateX = 1e6
     _ = m.sceneTick(elapsed: 1.0 / 60)
     #expect(m.phase == .crashed)
@@ -37,11 +37,11 @@ import Testing
 
 @MainActor @Test func retryStartsAFreshRun() {
     let m = makeModel()
-    m.handle(.hotKey); m.handle(.flapKey)
+    m.handle(.hotKey); m.handle(.flapKey); m.game.phase = .running
     m.game.pipY = Params.ground; m.game.nextGateX = 1e6
     _ = m.sceneTick(elapsed: 1.0 / 60)
     m.handle(.flapKey)
-    #expect(m.game.phase == .running && m.game.score == 0 && m.game.gates.isEmpty)
+    #expect(m.game.phase == .countdown(remaining: Params.countdownSteps) && m.game.score == 0 && m.game.gates.isEmpty)
 }
 
 @MainActor @Test func hitRectIsTheNotchWhenFoldedAndTheIslandWhenOpen() {

@@ -69,7 +69,7 @@ struct GameView: View {
                 .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 24))
             }
             .allowsHitTesting(false)
-        case .running:
+        case .running, .countdown:
             EmptyView()
         }
     }

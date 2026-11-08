@@ -6,24 +6,83 @@ public enum Runner {
         GameState(world: world, seed: seed, best: best)
     }
 
-    /// Idle → running with an impulse; running → impulse; paused → running without one; crashed → nothing (the app
-    /// starts a new game to retry).
+    /// The player's key. Running → an impulse. Idle or paused → the 3-2-1 countdown, with no impulse: the first flap
+    /// is the player's own. Counting down or crashed → nothing (the app starts a new game to retry).
     public static func flap(_ s: inout GameState, events: inout [GameEvent]) {
         switch s.phase {
-        case .idle, .running:
-            s.phase = .running
+        case .running:
             s.pipVY = Params.flapVelocity
             events.append(.flapped)
-        case .paused:
-            s.phase = .running
-        case .crashed:
+        case .idle, .paused:
+            startCountdown(&s)
+        case .countdown, .crashed:
             break
         }
     }
 
-    public static func pause(_ s: inout GameState) {
-        if s.phase == .running { s.phase = .paused }
+    /// Starts 3, 2, 1. A race peer shortens `steps` to make up for network delay; it is kept within 1…252. Any race
+    /// pause still waiting to land is dropped: the countdown is the resume.
+    public static func startCountdown(_ s: inout GameState, steps: Int = Params.countdownSteps) {
+        s.phase = .countdown(remaining: min(Params.countdownSteps, max(1, steps)))
+        s.freezeAt = nil
         s.accumulator = 0
+    }
+
+    /// "Go" for a fresh run: level at the start height and still, so every Mac starts a race identically however
+    /// long its countdown was.
+    public static func go(_ s: inout GameState) {
+        s.phase = .running
+        s.pipY = Params.idleY
+        s.pipVY = 0
+    }
+
+    /// Solo pause (Esc, P, folding, sleep, a stalled frame): a running or counting-down game freezes now. A crashed
+    /// run is left alone so its result card stays.
+    public static func pause(_ s: inout GameState) {
+        switch s.phase {
+        case .running, .countdown: s.phase = .paused
+        case .idle, .paused, .crashed: break
+        }
+        s.accumulator = 0
+    }
+
+    /// Race pause: freeze when `step` reaches `atStep`, or now if it already has. A crashed run's clock freezes too
+    /// and returns to crashed after the countdown. A countdown freezes at once (its step does not move). Two pending
+    /// pauses keep the earlier step.
+    public static func schedulePause(_ s: inout GameState, atStep: Int) {
+        switch s.phase {
+        case .running, .crashed:
+            if s.step >= atStep { freeze(&s) } else { s.freezeAt = min(atStep, s.freezeAt ?? atStep) }
+        case .countdown:
+            freeze(&s)
+        case .idle, .paused:
+            break
+        }
+    }
+
+    static func freeze(_ s: inout GameState) {
+        s.phase = .paused
+        s.freezeAt = nil
+        s.accumulator = 0
+    }
+
+    /// One countdown step. A fresh run (no step taken yet) hovers on a curve that lands level at "go"; a resumed run
+    /// stays frozen and carries on exactly where it stopped (back to crashed if it had crashed).
+    static func countdownStep(_ s: inout GameState, remaining: Int) {
+        let left = remaining - 1
+        let fresh = s.step == 0
+        if fresh {
+            let t = Double(left) * Params.fixedStep * 3
+            s.pipY = Params.idleY + sin(t) * 6
+            s.pipVY = -cos(t) * 40
+        }
+        if left > 0 {
+            s.phase = .countdown(remaining: left)
+        } else if fresh {
+            go(&s)
+        } else {
+            s.phase = s.crashStep == nil ? .running : .crashed
+        }
     }
 
     /// Which obsidian part Pip at height `y`, with collision radius `r`, touches, if Pip is inside the gate's columns.
@@ -72,11 +131,18 @@ public enum Runner {
             s.pipY = Params.idleY + sin(s.time * 3) * 6
             s.pipVY = cos(s.time * 3) * 40
             return
-        case .paused, .crashed:
+        case .countdown(let remaining):
+            countdownStep(&s, remaining: remaining)
+            return
+        case .paused:
+            return
+        case .crashed:
+            if let f = s.freezeAt, s.step >= f { freeze(&s) } else { s.step += 1 }
             return
         case .running:
-            break
+            if let f = s.freezeAt, s.step >= f { freeze(&s); return }
         }
+        s.step += 1
 
         let radiusBefore = s.pipRadius
         s.effects.tick(dt)
@@ -184,6 +250,7 @@ public enum Runner {
 
     static func crash(_ s: inout GameState, events: inout [GameEvent]) {
         s.phase = .crashed
+        s.crashStep = s.step
         if s.score > s.best {
             s.best = s.score
             s.newBest = true

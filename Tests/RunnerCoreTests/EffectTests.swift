@@ -1,8 +1,8 @@
 import Testing
 @testable import RunnerCore
 
-@Test func rulesVersionIsTwo() {
-    #expect(Params.rulesVersion == 2)
+@Test func rulesVersionIsThree() {
+    #expect(Params.rulesVersion == 3)
 }
 
 @Test func newPickupsSortIntoGoodAndBad() {

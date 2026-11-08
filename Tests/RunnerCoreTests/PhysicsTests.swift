@@ -9,8 +9,8 @@ func runningGame(seed: UInt64 = 1, best: Int = 0) -> GameState {
     return s
 }
 
-@Test func flapStartsRunFromIdle() {
-    var s = Runner.newGame(world: World(width: 350), seed: 1, best: 0)
+@Test func flapWhileRunningIsAnImpulse() {
+    var s = runningGame(); s.pipVY = 50
     var ev: [GameEvent] = []
     Runner.flap(&s, events: &ev)
     #expect(s.phase == .running && s.pipVY == Params.flapVelocity && ev == [.flapped])
@@ -49,13 +49,13 @@ func runningGame(seed: UInt64 = 1, best: Int = 0) -> GameState {
     #expect(ev == [.newBest(score: 4), .crashed(score: 4)])
 }
 
-@Test func flapResumesPausedWithoutImpulse() {
+@Test func flapOnPausedStartsTheCountdownWithoutImpulse() {
     var s = runningGame(); s.pipVY = 50
     Runner.pause(&s)
     #expect(s.phase == .paused)
     var ev: [GameEvent] = []
     Runner.flap(&s, events: &ev)
-    #expect(s.phase == .running && s.pipVY == 50 && ev.isEmpty)
+    #expect(s.phase == .countdown(remaining: Params.countdownSteps) && s.pipVY == 50 && ev.isEmpty)
 }
 
 @Test func flapDoesNothingWhenCrashed() {

@@ -8,7 +8,18 @@ public struct World: Equatable, Sendable {
     public var pipX: Double { width * Params.pipXFraction }
 }
 
-public enum Phase: Equatable, Sendable { case idle, running, paused, crashed }
+public enum Phase: Equatable, Sendable {
+    case idle, running, paused, crashed
+    /// Counting down to play: `remaining` fixed steps until the world moves.
+    case countdown(remaining: Int)
+
+    /// The number on the badge, 3, 2 or 1; nil outside the countdown.
+    public var countdownNumber: Int? {
+        guard case .countdown(let r) = self else { return nil }
+        let per = Params.countdownStepsPerNumber
+        return min(3, max(1, (r + per - 1) / per))
+    }
+}
 public enum Side: Equatable, Sendable { case upper, lower }
 
 public enum Pickup: String, CaseIterable, Equatable, Sendable {
@@ -157,6 +168,13 @@ public struct GameState: Equatable, Sendable {
     public var rng: SeededRandom
     public var time = 0.0
     public var accumulator = 0.0
+    /// Fixed steps since "go". It counts while running and after a crash (a crashed racer's clock keeps the ghost
+    /// moving), never while paused or counting down. Flaps and race pauses are addressed by it.
+    public var step = 0
+    /// The step the run crashed on.
+    public var crashStep: Int?
+    /// A race pause waiting to land: the run freezes when `step` reaches it.
+    public var freezeAt: Int?
 
     public init(world: World, seed: UInt64, best: Int) {
         self.world = world
