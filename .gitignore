@@ -2,6 +2,7 @@
 # mockups, founder research, tool workspaces) stays local.
 /*
 !/.gitignore
+!/.github/
 !/Package.swift
 !/Package.resolved
 !/Sources/
