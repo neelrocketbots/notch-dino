@@ -4,7 +4,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-VERSION="${VERSION:-0.2.0}"
+# The version: VERSION in the environment, else the newest tag (v1.2.3 → 1.2.3), else 0.0.0.
+VERSION="${VERSION:-$(git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0)}"
+VERSION="${VERSION#v}"
 BUILD="${BUILD:-$(git rev-list --count HEAD 2>/dev/null || echo 1)}"
 APP=".build/app/Notch Dino.app"
 

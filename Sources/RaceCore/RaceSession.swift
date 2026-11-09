@@ -104,7 +104,7 @@ public struct RaceSession: Sendable {
     private var lastPing = -Double.infinity
     private var lobbyPingsLeft = RaceSession.lobbyPings
     private var pausedSince: Double?
-    /// Both players paused at once, so either may resume (plan Decision 8).
+    /// Both players paused at once, so either may resume.
     private var bothPaused = false
 
     /// `seed` feeds the race seeds a host picks; tests pass a fixed one.

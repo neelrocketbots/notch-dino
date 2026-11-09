@@ -6,7 +6,7 @@ let package = Package(
     platforms: [.macOS("26.0")],
     products: [.executable(name: "NotchDino", targets: ["NotchDino"])],
     dependencies: [
-        .package(url: "https://github.com/neelrocketbots/notchkit.git", branch: "main"),
+        .package(url: "https://github.com/neelrocketbots/notchkit.git", from: "0.1.0"),
     ],
     targets: [
         .target(name: "RunnerCore"),

@@ -366,7 +366,7 @@ import Testing
     @MainActor @Test func aConnectTimeoutWhileFoldedShowsOnReopening() {
         let (m, _, clock) = joining()
         m.handle(.hotKey)
-        #expect(!m.isOpen && m.race == .match(.waiting, .guest))   // folding keeps a waiting race open (Decision 11)
+        #expect(!m.isOpen && m.race == .match(.waiting, .guest))   // folding keeps a waiting race open
         clock.now = 5
         m.raceInput(.tick(step: 0, phase: .idle))                   // the race timer
         m.handle(.hotKey)
