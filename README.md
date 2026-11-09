@@ -7,6 +7,11 @@
 <p align="center">A tiny, free macOS game that opens out of the MacBook notch.</p>
 
 <p align="center">
+  <a href="https://github.com/neelrocketbots/notch-dino/releases/latest"><img src="https://img.shields.io/github/v/release/neelrocketbots/notch-dino?label=download" alt="Latest release"></a>
+  <a href="https://github.com/neelrocketbots/notch-dino/actions/workflows/ci.yml"><img src="https://github.com/neelrocketbots/notch-dino/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+</p>
+
+<p align="center">
   <img src="assets/run.png" width="560" alt="Pip, a small red dragon, flying across a dark volcanic night sky towards a pair of obsidian shards, with the best score and current score in the notch band above">
 </p>
 
@@ -123,6 +128,12 @@ Racing needs the app bundle (see Build): macOS only asks for Local Network acces
   about 36 MB of memory.
 - **Open source.** Everything the app does is in `Sources/`.
 
+## Install
+
+Download `Notch-Dino-vX.Y.Z.zip` from the [latest release](https://github.com/neelrocketbots/notch-dino/releases/latest), unzip, drag `Notch Dino.app` to Applications and open it. Needs macOS 26 or later.
+
+The app is signed ad hoc, not notarized, so macOS blocks the first launch. Open System Settings › Privacy & Security and click **Open Anyway**, or build it yourself below. Each release is built by [a workflow](.github/workflows/release.yml) from the tagged source.
+
 ## Build
 
 Requires macOS 26 or later and Swift 6.2. Built on [NotchKit](https://github.com/neelrocketbots/notchkit).
@@ -132,6 +143,8 @@ Requires macOS 26 or later and Swift 6.2. Built on [NotchKit](https://github.com
     scripts/build-app.sh     # Notch Dino.app in .build/app (ad-hoc signed); needed for racing
     scripts/e2e-race.sh      # two players race over real Bonjour on this Mac
     scripts/make-icon.sh     # redraw the app icon (scripts/icon/AppIcon.icns)
+
+A release is a tag: `git tag -s v0.2.0 -m v0.2.0 && git push origin v0.2.0`. The Release workflow runs the tests, builds the app at that version, zips it and publishes it with notes from the merged pull requests.
 
 ## License
 
